@@ -6,6 +6,24 @@ Newest entries go at the **top**. See `CLAUDE.md` for the logging instructions C
 
 ---
 
+## 2026-08-26 — Reconcile local main with the real origin/main history
+
+**Prompt (paraphrased):** User ran `git checkout -q --track origin/main` (presumably after fetching with their own authenticated shell) and got `fatal: a branch named 'main' already exists`.
+
+**Actions taken:**
+1. Diagnosed the cause: the local `main` created earlier via `git init -b main` (no push credentials were available, so it was a fabricated root commit) was unrelated history to the real `origin/main`, which by this point existed locally as a ref (the user had fetched it outside the sandbox). `git checkout --track` refuses to reuse an existing, diverged branch name.
+2. Compared `origin/main`'s `README.md`/`.gitignore` against the local versions — only trailing-whitespace differences, otherwise identical content, so nothing of value would be lost by switching base history.
+3. Backed up local `main` to `backup-local-main`, then ran `git checkout -B main origin/main` to reset `main` onto the real remote history and set it tracking `origin/main`.
+4. Restored the three files unique to local work (`docs/plantnet-api.md`, `CLAUDE.md`, `CLAUDE_ACTIONS_LOG.md`) from `backup-local-main` via `git checkout backup-local-main -- <paths>`, staged, and committed them on top of `origin/main`.
+5. Verified `git diff backup-local-main main -- <paths>` was empty (content fully preserved) before force-deleting `backup-local-main` with `git branch -D`.
+
+**Files changed:**
+- No content changes — `README.md`/`.gitignore` now match `origin/main` exactly (previously had trivial whitespace diffs); `docs/plantnet-api.md`, `CLAUDE.md`, `CLAUDE_ACTIONS_LOG.md` carried over unchanged, now committed as `e443bd3` on top of the real `3a375b5` "Initial commit" from origin.
+
+**Notes / caveats:**
+- Local `main` now tracks `origin/main` and is 1 commit ahead — still needs an explicit `git push` (by the user, since this sandbox has no push credentials) to publish `e443bd3`.
+- This was a git-history reconciliation, not a content change — safe because the two histories' overlapping files were verified near-identical before switching base branches.
+
 ## 2026-08-26 — Set up action logging for the course
 
 **Prompt (paraphrased):** This repo also serves as an AI-assisted software development course. Create a "Claude actions log" markdown file tracing everything done so far, then update this repo's Claude instructions so future usage is automatically traced there too.
