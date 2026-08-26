@@ -6,6 +6,58 @@ Newest entries go at the **top**. See `CLAUDE.md` for the logging instructions C
 
 ---
 
+## 2026-08-26 — Diagram the architecture (drawio) and lock in MinIO for image storage
+
+**Prompt (paraphrased):** Generate a block architecture diagram using drawio. Use the online editor. Add a user actor to the diagram. Confirmed image storage will be MinIO, self-hosted (not just for local dev, but production too).
+
+**Actions taken:**
+1. Used the `drawio` MCP integration (`mcp__drawio__open_drawio_xml`) to generate a block diagram of `docs/architecture.md`'s system architecture: Flutter Client (Android + Flutter Web) → FastAPI Backend (owns `PLANTNET_API_KEY` server-side) → PostgreSQL, S3-compatible object storage, and the external Pl@ntNet API, with `routing="libavoid"` for clean orthogonal edges. Opened via the hosted app.diagrams.net editor (confirmed with the user — no local drawio binary on PATH, though the Flatpak desktop app `com.jgraph.drawio.desktop` is installed; the MCP tool only drives the browser-hosted editor).
+2. Added a "Usuario" actor shape connected to the Flutter Client block per user request.
+3. User confirmed the image-storage decision: MinIO, self-hosted, used in both dev and production (not just local dev with a swappable prod provider as originally left open). Updated `docs/architecture.md`'s "Image storage" section and system-diagram ASCII block to say MinIO explicitly, keeping the S3-protocol-only dependency (`boto3`/`aioboto3`) so a managed provider stays a drop-in swap if ever needed later.
+4. Re-generated the drawio diagram with the storage box relabeled "MinIO (self-hosted)".
+
+**Files changed:**
+- `docs/architecture.md` (edited — "Image storage" section and system diagram block now name MinIO explicitly instead of leaving the S3 backend unspecified)
+
+**Notes / caveats:**
+- The drawio diagrams themselves are not saved as files in the repo — they were only opened in the browser editor. If versioning the diagram is wanted, it should be exported/saved as a `.drawio` XML file under `docs/` in a follow-up.
+- MinIO in production still needs a real host once deployment is decided (still open) — this decision only fixes *what* storage system, not *where* it runs.
+
+## 2026-08-26 — Define system architecture (Flutter + FastAPI + Postgres)
+
+**Prompt (paraphrased):** Discuss architecture alternatives for Android+web compatibility with a backend that has a DB for user data and integrates with the Pl@ntNet API. Worked through tradeoffs interactively, then asked to write the resulting plan up as an architecture document in the repo.
+
+**Actions taken:**
+1. Used `/plan` (plan mode) to explore the decision space. Presented three client options (React Native+RN Web, PWA+Capacitor, Flutter) and two backend options (Supabase vs custom), then iterated with the user via `AskUserQuestion` through several rounds — performance ranking of the three client options, clarifying that backend language doesn't affect performance here (I/O-bound on Pl@ntNet/Postgres, not compute-bound), and explaining what Dart is (not related to .NET) — before the user locked in **Flutter (Android + Web) + FastAPI + PostgreSQL**, backend proxying Pl@ntNet.
+2. Delegated to a `Plan` subagent to work out the detailed architecture (system diagram, repo layout, Postgres data model, auth approach, image storage approach, phased build order), briefed with the locked stack and the relevant constraints already documented in `docs/plantnet-api.md` (server-side-only API key, quota/rate-limit headers, free-plan error-credit cost, multi-image/organ-tagging behavior).
+3. Wrote the plan to the plan-mode plan file for user review; user rejected the `ExitPlanMode` approval prompt and instead asked directly for the architecture document to be created in the repo.
+4. Wrote `docs/architecture.md` — the system diagram, decisions-and-why, repo layout (`backend/` FastAPI + `client/` Flutter as sibling dirs), Postgres schema (`users`, `identifications`, `identification_images`, `identification_results`, `plants`, `garden_items`), auth (email+password + JWT, no managed auth vendor), image storage (S3-protocol object storage, MinIO for local dev), a 7-phase build order (scaffolding → auth → single-photo identify → multi-shot capture → save/garden list → quota hardening → animated garden view), and per-phase verification steps.
+
+**Files changed:**
+- `docs/architecture.md` (new)
+
+**Notes / caveats:**
+- Deployment host is explicitly left undecided — the storage/backend design was chosen to stay deployment-agnostic (S3-protocol storage works against AWS/R2/B2/MinIO interchangeably) rather than assume a host.
+- No code was written yet — this is the architecture reference the phased build (starting with Phase 0 scaffolding) will follow next.
+- The user twice redirected mid-discussion (asked for a performance ranking instead of picking an option; asked what language Flutter depends on) — both were direct factual questions, answered inline before re-offering the choice, rather than assumptions being made on their behalf.
+
+## 2026-08-26 — Add .env / .env.example for API key storage
+
+**Prompt (paraphrased):** Generate a file for saving the API key and other sensitive values.
+
+**Actions taken:**
+1. Confirmed `.env` was already covered by the existing `.gitignore` (line `151: .env`), so no gitignore change was needed.
+2. Created `.env.example` (committed, placeholder-only) with `PLANTNET_API_KEY=` and a pointer to `docs/plantnet-api.md` for how it's used.
+3. Created `.env` (git-ignored, real local secrets) pre-populated with the same empty `PLANTNET_API_KEY=` key for the user to fill in.
+4. Verified with `git status --porcelain` that only `.env.example` shows as untracked and `.env` is correctly excluded.
+
+**Files changed:**
+- `.env.example` (new, tracked)
+- `.env` (new, git-ignored — not committed)
+
+**Notes / caveats:**
+- `.env` was left empty for the user to fill in their real Pl@ntNet API key locally; it will never be committed.
+
 ## 2026-08-26 — Reconcile local main with the real origin/main history
 
 **Prompt (paraphrased):** User ran `git checkout -q --track origin/main` (presumably after fetching with their own authenticated shell) and got `fatal: a branch named 'main' already exists`.

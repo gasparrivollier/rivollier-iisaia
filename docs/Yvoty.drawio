@@ -1,0 +1,53 @@
+<mxfile host="Electron">
+  <diagram name="Page-1" id="vD-zrJC4of1iU6gg9Xrq">
+    <mxGraphModel dx="1068" dy="1743" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="user" parent="1" style="shape=actor;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;fontStyle=1;" value="Usuario" vertex="1">
+          <mxGeometry height="80" width="60" x="490" y="-128" as="geometry" />
+        </mxCell>
+        <mxCell id="clientGroup" parent="1" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=14;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=8;spacingTop=6;" value="Flutter Client" vertex="1">
+          <mxGeometry height="120" width="480" x="280" y="40" as="geometry" />
+        </mxCell>
+        <mxCell id="android" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=13;" value="Android App" vertex="1">
+          <mxGeometry height="60" width="190" x="310" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="web" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=13;" value="Flutter Web" vertex="1">
+          <mxGeometry height="60" width="190" x="520" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="backend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;fontStyle=1;" value="FastAPI Backend&#xa;(owns PLANTNET_API_KEY, server-only)" vertex="1">
+          <mxGeometry height="70" width="280" x="380" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="postgres" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" value="PostgreSQL&#xa;users, identifications,&#xa;plants, garden_items" vertex="1">
+          <mxGeometry height="90" width="160" x="53" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="storage" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" value="MinIO (self-hosted)&#xa;S3-compatible object storage&#xa;(user plant photos)" vertex="1">
+          <mxGeometry height="70" width="200" x="420" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="plantnet" parent="1" style="rounded=1;dashed=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=13;fontStyle=1;" value="Pl@ntNet API&#xa;POST /v2/identify/{project}" vertex="1">
+          <mxGeometry height="60" width="220" x="827" y="245" as="geometry" />
+        </mxCell>
+        <mxCell id="e0" edge="1" parent="1" source="user" style="fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=0;libavoidRouting=1;orthogonalLoop=1;jettySize=auto;html=1;" target="clientGroup" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="clientGroup" style="fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=0;libavoidRouting=1;orthogonalLoop=1;jettySize=auto;html=1;" target="backend" value="HTTPS + JWT bearer">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="backend" style="fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=0;libavoidRouting=1;orthogonalLoop=1;jettySize=auto;html=1;" target="postgres" value="SQL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="backend" style="fontSize=11;edgeStyle=orthogonalEdgeStyle;rounded=0;libavoidRouting=1;orthogonalLoop=1;jettySize=auto;html=1;" target="storage" value="upload / presigned URL">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="backend" style="fontSize=11;dashed=1;edgeStyle=orthogonalEdgeStyle;rounded=0;libavoidRouting=1;orthogonalLoop=1;jettySize=auto;html=1;" target="plantnet" value="api-key (server-side only)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points" />
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
