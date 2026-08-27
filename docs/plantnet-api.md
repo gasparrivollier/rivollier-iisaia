@@ -23,7 +23,7 @@ Source docs browsed: getting-started (introduction, pro-plan, faq), api (openapi
 
 **Query params**
 - `api-key` (required)
-- `lang` — language for common names etc.
+- `lang` — language for common names etc. Confirmed working live with `lang=es` (e.g. *Murraya paniculata* → "Mirto", "Azahar de la india", "Limonaria" instead of "Orange Jasmine", "Orange jessamine", "Mock orange"). Only `commonNames` content changes — response shape/fields stay identical. Full list of supported codes via `GET /v2/languages`. **Yvoty should always pass the app's currently selected UI language here** (at minimum `es` and `en`), so identification results come back already localized instead of needing client-side translation.
 - `nb-results` — cap number of results (min 1)
 - `include-related-images` — bool, return similar reference images per species
 - `no-reject` — bool, don't reject non-plant images (see rejection behavior below)
@@ -80,7 +80,23 @@ Source docs browsed: getting-started (introduction, pro-plan, faq), api (openapi
 - Costs 1 credit, **shares the same quota** as single-species identify.
 
 ### Varieties (cultivars, beta/limited)
-- `GET /v2/varieties` — list identifiable varieties
+- `GET /v2/varieties` — list identifiable varieties. **Free call, doesn't consume identify quota** (confirmed live). Each entry embeds the full parent species inline:
+  ```json
+  {
+    "name": "Api d'été",
+    "species": {
+      "scientificName": "Malus domestica (Suckow) Borkh.",
+      "scientificNameWithoutAuthor": "Malus domestica",
+      "scientificNameAuthorship": "(Suckow) Borkh.",
+      "genus": "Malus",
+      "family": "Rosaceae",
+      "commonNames": ["Paradise apple"],
+      "gbif": { "id": "3001244" }
+    }
+  }
+  ```
+  Note `genus`/`family` here are plain strings, unlike `/v2/identify`'s response where they're nested objects (`{ "scientificNameWithoutAuthor": "...", ... }`) — don't assume the same shape across endpoints.
+  Full real response (137 entries as of 2026-08-26) saved at `docs/examples/plantnet-varieties-response.json` — useful as a seed reference when designing the varieties DB schema. A flattened CSV is also available at `docs/examples/plantnet-varieties-response.csv` (columns: `variety_name`, `species_scientificName`, `species_scientificNameWithoutAuthor`, `species_scientificNameAuthorship`, `genus`, `family`, `commonNames` [`; `-joined], `gbif_id`).
 - `POST /v2/varieties/identify` — same shape; results grouped under parent species, variety images at `varieties[*].images`
 - Costs 1 credit, shares the identify quota.
 
@@ -93,6 +109,21 @@ Source docs browsed: getting-started (introduction, pro-plan, faq), api (openapi
 
 ## 4. Supporting endpoints
 
+- `GET /v2/species` — **full species catalog, undocumented in the official reference but confirmed working live on the free plan** (despite the 2026-03-03 changelog framing `/v2/species` as a Pro-only feature — that restriction seems to apply only to the optional illustrations, not the listing itself). Paginated with `page` (1-indexed) and `pageSize` query params — `pageSize=500` confirmed working; `limit`/`offset`/`per_page` are rejected with `400 Bad Request`. Defaults to `pageSize=100` if omitted. Each entry:
+  ```json
+  {
+    "id": "1844990",
+    "commonNames": ["Hybrid Amarcrinum", "Cultivated Amarcrinum"],
+    "genus": null,
+    "scientificNameWithoutAuthor": "× Amarcrinum memoria-corsii",
+    "scientificNameAuthorship": "(Ragion.) H.E.Moore",
+    "gbifId": 4013973,
+    "powoId": "62653-1",
+    "iucnCategory": null
+  }
+  ```
+  `genus` is frequently `null` (seen on hybrids/nothospecies at least); `iucnCategory` also frequently `null`. Paginating through with `pageSize=500` to exhaustion (stop when a page returns fewer than `pageSize` results) yielded **86,824 species** as of 2026-08-26 — notably more than the ~77k figure quoted in the site's own changelog notes (§9), so the catalog is presumably still growing or that figure was already stale.
+  Full catalog dumped to `docs/examples/plantnet-species.csv` via `scripts/fetch_plantnet_species.py` — a ~7.2MB CSV, useful as the seed reference for a `species` table. Doesn't appear to consume identify quota (a listing/read call, same family as `/v2/varieties`).
 - `GET /v2/projects` — list of valid `project` (flora) values for the `{project}` path param.
 - `GET /v2/languages` — supported language codes for `lang` param, e.g. `["en","fr","es","pt","de","it","ar","cs", ...]`.
 - `GET /v2/_status` — health check, `{ "status": "ok" }`.

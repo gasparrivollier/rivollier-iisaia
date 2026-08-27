@@ -2,7 +2,7 @@
 """Quick draft script to smoke-test the Pl@ntNet identify endpoint.
 
 Usage:
-    python scripts/test_plantnet.py path/to/photo.jpg [more.jpg ...] [--save-raw out.json]
+    python scripts/test_plantnet.py path/to/photo.jpg [more.jpg ...] [--save-raw out.json] [--lang es]
 
 Reads PLANTNET_API_KEY from .env at the repo root.
 """
@@ -27,9 +27,11 @@ def load_api_key() -> str:
     raise RuntimeError(f"PLANTNET_API_KEY not found in {env_path}")
 
 
-def identify(image_paths: list[str], api_key: str) -> dict:
+def identify(image_paths: list[str], api_key: str, lang: str | None = None) -> dict:
     url = f"{API_BASE}/v2/identify/all"
     params = {"api-key": api_key}
+    if lang:
+        params["lang"] = lang
     files = [
         (
             "images",
@@ -58,12 +60,18 @@ def main() -> None:
         save_raw_path = args[idx + 1]
         del args[idx : idx + 2]
 
+    lang = None
+    if "--lang" in args:
+        idx = args.index("--lang")
+        lang = args[idx + 1]
+        del args[idx : idx + 2]
+
     if not args:
-        print(f"Usage: {sys.argv[0]} path/to/photo.jpg [more.jpg ...] [--save-raw out.json]")
+        print(f"Usage: {sys.argv[0]} path/to/photo.jpg [more.jpg ...] [--save-raw out.json] [--lang es]")
         sys.exit(1)
 
     api_key = load_api_key()
-    data = identify(args, api_key)
+    data = identify(args, api_key, lang)
 
     if save_raw_path:
         Path(save_raw_path).write_text(json.dumps(data, indent=2, ensure_ascii=False))

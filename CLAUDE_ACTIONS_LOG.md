@@ -6,6 +6,98 @@ Newest entries go at the **top**. See `CLAUDE.md` for the logging instructions C
 
 ---
 
+## 2026-08-26 — Confirm species data shape inside `GET /v2/varieties`
+
+**Prompt (paraphrased):** Asked whether species data is present in the varieties method.
+
+**Actions taken:**
+1. Called `GET /v2/varieties` directly (ad hoc, not via the script) with the `.env` API key — confirmed `200 OK` and that it does **not** consume identify quota (a free listing call).
+2. Inspected the response: each variety entry embeds the full parent species inline (`scientificName`, `genus`, `family`, `commonNames`, `gbif.id`), confirming the doc's existing "grouped under parent species" note, but found `genus`/`family` are plain strings here — unlike `/v2/identify`'s response where they're nested objects.
+3. Updated `docs/plantnet-api.md`'s Varieties section with the confirmed free-call behavior, a real example entry, and the genus/family shape discrepancy warning.
+
+**Files changed:**
+- `docs/plantnet-api.md` (edited) — Varieties section now documents the confirmed `GET /v2/varieties` response shape and the free (non-quota) nature of the call.
+
+**Notes / caveats:**
+- No identify credits consumed this session (listing endpoint is free).
+
+## 2026-08-26 — Save full `GET /v2/varieties` response for DB schema prep
+
+**Prompt (paraphrased):** Asked to save the full response of `GET /v2/varieties` so it's ready as reference for designing the database.
+
+**Actions taken:**
+1. Called `GET /v2/varieties` again and confirmed the full list is small (137 entries, ~36KB) — safe to store as-is rather than sampling.
+2. Saved the complete response as `docs/examples/plantnet-varieties-response.json` (pretty-printed, `ensure_ascii=False` to keep accented characters readable).
+3. Added a pointer to this file in `docs/plantnet-api.md`'s Varieties section, framed as a seed reference for the varieties DB schema.
+
+**Files changed:**
+- `docs/examples/plantnet-varieties-response.json` (new) — full 137-entry varieties list from Pl@ntNet.
+- `docs/plantnet-api.md` (edited) — added reference to the saved file.
+
+**Notes / caveats:**
+- No identify credits consumed (listing endpoint is free/unmetered).
+- This is a live snapshot dated 2026-08-26 — Pl@ntNet's varieties list may grow over time (docs mention pagination becoming relevant "at scale"); worth refreshing if it's ever used as the literal DB seed rather than just a schema reference.
+
+## 2026-08-26 — Flatten varieties response to CSV
+
+**Prompt (paraphrased):** Asked to convert the saved varieties JSON to a CSV.
+
+**Actions taken:**
+1. Wrote a one-off Python script (inline, not saved to `scripts/`) to flatten `docs/examples/plantnet-varieties-response.json` into tabular form: `variety_name`, `species_scientificName`, `species_scientificNameWithoutAuthor`, `species_scientificNameAuthorship`, `genus`, `family`, `commonNames` (joined with `; ` since it's a list), `gbif_id`.
+2. Wrote the result to `docs/examples/plantnet-varieties-response.csv` (137 data rows + header).
+3. Referenced the CSV alongside the JSON in `docs/plantnet-api.md`'s Varieties section, with the column list.
+
+**Files changed:**
+- `docs/examples/plantnet-varieties-response.csv` (new) — flattened, DB-import-ready version of the varieties response.
+- `docs/plantnet-api.md` (edited) — added reference + column list for the CSV.
+
+**Notes / caveats:**
+- No API calls made — purely a local transform of the already-saved JSON.
+
+## 2026-08-26 — Discover and dump the undocumented full species catalog (`GET /v2/species`)
+
+**Prompt (paraphrased):** User pointed out the varieties list (137 entries) is nowhere near the ~77k species Pl@ntNet claims to cover, and asked to check what's going on. Then asked to test whether a `/v2/species`-style endpoint exists, and once confirmed working with `pageSize=500`, asked for a script that paginates through and saves the whole catalog to CSV.
+
+**Actions taken:**
+1. Explained the ~77k figure is model taxonomic coverage overall, not the varieties (cultivars) list — different endpoints, different scopes. Noted the official doc mentions `/v2/species` only in passing in the changelog (2026-03-03, framed as Pro-only, for illustrations).
+2. Called `GET /v2/species` directly with the `.env` key — got `200 OK` on the free plan, returning full species records (`id`, `scientificNameWithoutAuthor`, `scientificNameAuthorship`, `genus`, `commonNames`, `gbifId`, `powoId`, `iucnCategory`).
+3. Probed pagination params by trial: `offset`, `limit`, `per_page` all rejected with `400`; `page` + `pageSize` work (confirmed `page=2` returns different records, `pageSize=500` returns 500 rows without error).
+4. Wrote `scripts/fetch_plantnet_species.py` — loops `page=1,2,3,...` with `pageSize=500`, flattens each record (joining `commonNames` with `; `, resolving `genus` whether it's a string/object/null) and streams rows to CSV incrementally (flushing per page) with a 0.2s pause between requests, stopping when a page returns fewer than `pageSize` rows.
+5. Ran the script in the background (`run_in_background`) and used the `Monitor` tool to wait for completion rather than polling — it paginated 174 pages and finished with exit code 0.
+6. Verified the output: 86,824 species rows, `docs/examples/plantnet-species.csv` (~7.2MB).
+7. Updated `docs/plantnet-api.md` §4 with a new `GET /v2/species` entry documenting the endpoint, its pagination quirks, an example record, the 86,824 count vs. the doc's stale ~77k figure, and a pointer to the saved CSV.
+
+**Files changed:**
+- `scripts/fetch_plantnet_species.py` (new) — paginates `GET /v2/species` (`page`/`pageSize=500`) to exhaustion, writes a flattened CSV incrementally.
+- `docs/examples/plantnet-species.csv` (new) — full species catalog dump, 86,824 rows, ~7.2MB.
+- `docs/plantnet-api.md` (edited) — new `GET /v2/species` entry under Supporting endpoints, documenting the undocumented-but-working endpoint, its pagination params, and the real species count found.
+
+**Notes / caveats:**
+- `/v2/species` is not in the official Pl@ntNet API reference beyond an offhand changelog mention — behavior (pagination params, free-plan access, whether it stays stable) is not guaranteed by Pl@ntNet and could change without notice.
+- This is a live snapshot dated 2026-08-26 — treat it as a seed/reference, not a permanently-accurate mirror; the catalog will grow over time.
+- Did not hit any rate-limit/429 across 174 sequential requests with a 0.2s gap; no identify credits appeared to be consumed (same free-listing family as `/v2/varieties`), but this wasn't explicitly cross-checked against `/v2/quota/daily` before/after.
+
+---
+
+## 2026-08-26 — Confirm `lang` param localizes common names, document app-language usage
+
+**Prompt (paraphrased):** Asked what `GET /v2/languages` does and whether the identify response can come back in Spanish. Asked to test it, and if it works, document that Yvoty should use whatever language the app has selected (at least `es` and `en`).
+
+**Actions taken:**
+1. Explained `GET /v2/languages` is just a metadata endpoint listing supported language codes — translation itself is controlled by the `lang` query param on `/v2/identify/{project}`.
+2. Added a `--lang` flag to `scripts/test_plantnet.py` and threaded it through `identify()` as the `lang` query param.
+3. Ran `python3 scripts/test_plantnet.py assets/plants/jazmin/jazmin_1.png --lang es` (single image, to minimize credit use) — confirmed `commonNames` came back in Spanish ("Mirto", "Azahar de la india", "Limonaria") while `bestMatch`/score/JSON shape were unchanged. Quota 496 remaining after.
+4. Updated `docs/plantnet-api.md`'s `lang` param description with the confirmed behavior and a design note: Yvoty should always pass the app's currently selected UI language to `lang` (at minimum `es`/`en`).
+
+**Files changed:**
+- `scripts/test_plantnet.py` (edited) — added `--lang` CLI flag.
+- `docs/plantnet-api.md` (edited) — `lang` param bullet now documents confirmed Spanish-localization behavior and the app-language design guidance.
+
+**Notes / caveats:**
+- One more live identify credit consumed this session (499 → ... → 496 across the session's calls).
+
+---
+
 ## 2026-08-26 — Test identify with 5 images, capture a real response example, update API doc
 
 **Prompt (paraphrased):** Confirmed the request is multipart (asked if that's documented — pointed to `docs/plantnet-api.md`). Asked to test the script with 5 photos, then to save an example of the raw response, then to update the API doc with anything undocumented found in it.
