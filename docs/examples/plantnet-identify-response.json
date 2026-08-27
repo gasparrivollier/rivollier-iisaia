@@ -1,0 +1,362 @@
+{
+  "query": {
+    "project": "all",
+    "images": [
+      "7c0423cc7c1c4de743aa8be209152413",
+      "f662992435e24edf4f419b51322d739c",
+      "d4449d2f19e9badc3b90467f5c63afe0",
+      "37a1d8b2bca6377b49e414e23e671dfc",
+      "42448f531d7e5c7496f4ffcadf05be2c"
+    ],
+    "organs": [
+      "auto",
+      "auto",
+      "auto",
+      "auto",
+      "auto"
+    ],
+    "includeRelatedImages": false,
+    "noReject": false,
+    "type": null
+  },
+  "predictedOrgans": [
+    {
+      "image": "7c0423cc7c1c4de743aa8be209152413",
+      "filename": "jazmin_1.png",
+      "organ": "flower",
+      "score": 0.77573
+    },
+    {
+      "image": "f662992435e24edf4f419b51322d739c",
+      "filename": "Pasted image.png",
+      "organ": "habit",
+      "score": 0.40353
+    },
+    {
+      "image": "d4449d2f19e9badc3b90467f5c63afe0",
+      "filename": "Pasted image (2).png",
+      "organ": "flower",
+      "score": 0.82788
+    },
+    {
+      "image": "37a1d8b2bca6377b49e414e23e671dfc",
+      "filename": "Pasted image (3).png",
+      "organ": "leaf",
+      "score": 0.42402
+    },
+    {
+      "image": "42448f531d7e5c7496f4ffcadf05be2c",
+      "filename": "Pasted image (4).png",
+      "organ": "flower",
+      "score": 0.84137
+    }
+  ],
+  "language": "en",
+  "preferedReferential": "k-world-flora",
+  "bestMatch": "Murraya paniculata (L.) Jack",
+  "results": [
+    {
+      "score": 0.88926,
+      "species": {
+        "scientificNameWithoutAuthor": "Murraya paniculata",
+        "scientificNameAuthorship": "(L.) Jack",
+        "genus": {
+          "scientificNameWithoutAuthor": "Murraya",
+          "scientificNameAuthorship": "",
+          "scientificName": "Murraya"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Rutaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Rutaceae"
+        },
+        "commonNames": [
+          "Orange Jasmine",
+          "Orange jessamine",
+          "Mock orange"
+        ],
+        "scientificName": "Murraya paniculata (L.) Jack"
+      },
+      "gbif": {
+        "id": "5421335"
+      },
+      "powo": {
+        "id": "774441-1"
+      }
+    },
+    {
+      "score": 0.81742,
+      "species": {
+        "scientificNameWithoutAuthor": "Gardenia jasminoides",
+        "scientificNameAuthorship": "J.Ellis",
+        "genus": {
+          "scientificNameWithoutAuthor": "Gardenia",
+          "scientificNameAuthorship": "",
+          "scientificName": "Gardenia"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Rubiaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Rubiaceae"
+        },
+        "commonNames": [
+          "Gardenia",
+          "Cape Jasmine",
+          "Cape jessamine"
+        ],
+        "scientificName": "Gardenia jasminoides J.Ellis"
+      },
+      "gbif": {
+        "id": "5335125"
+      },
+      "powo": {
+        "id": "751073-1"
+      },
+      "iucn": {
+        "id": "226501878",
+        "category": "LC"
+      }
+    },
+    {
+      "score": 0.75286,
+      "species": {
+        "scientificNameWithoutAuthor": "Stephanotis floribunda",
+        "scientificNameAuthorship": "Jacques",
+        "genus": {
+          "scientificNameWithoutAuthor": "Stephanotis",
+          "scientificNameAuthorship": "",
+          "scientificName": "Stephanotis"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Apocynaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Apocynaceae"
+        },
+        "commonNames": [
+          "Madagascar jasmine",
+          "Bridal wreath",
+          "Madagascar stephanotis"
+        ],
+        "scientificName": "Stephanotis floribunda Jacques"
+      },
+      "gbif": {
+        "id": "10924978"
+      },
+      "powo": {
+        "id": "77204413-1"
+      },
+      "iucn": {
+        "id": "90604995",
+        "category": "VU"
+      }
+    },
+    {
+      "score": 0.73432,
+      "species": {
+        "scientificNameWithoutAuthor": "Jasminum mesnyi",
+        "scientificNameAuthorship": "Hance",
+        "genus": {
+          "scientificNameWithoutAuthor": "Jasminum",
+          "scientificNameAuthorship": "",
+          "scientificName": "Jasminum"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Oleaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Oleaceae"
+        },
+        "commonNames": [
+          "Japanese jasmine",
+          "Primrose jasmine",
+          "Yellow jasmine"
+        ],
+        "scientificName": "Jasminum mesnyi Hance"
+      },
+      "gbif": {
+        "id": "3172272"
+      },
+      "powo": {
+        "id": "609624-1"
+      }
+    },
+    {
+      "score": 0.39858,
+      "species": {
+        "scientificNameWithoutAuthor": "Trachelospermum jasminoides",
+        "scientificNameAuthorship": "(Lindl.) Lem.",
+        "genus": {
+          "scientificNameWithoutAuthor": "Trachelospermum",
+          "scientificNameAuthorship": "",
+          "scientificName": "Trachelospermum"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Apocynaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Apocynaceae"
+        },
+        "commonNames": [
+          "Star jasmine",
+          "Confederate jasmine",
+          "Chinese star jessamine"
+        ],
+        "scientificName": "Trachelospermum jasminoides (Lindl.) Lem."
+      },
+      "gbif": {
+        "id": "3169713"
+      },
+      "powo": {
+        "id": "82553-1"
+      }
+    },
+    {
+      "score": 0.11583,
+      "species": {
+        "scientificNameWithoutAuthor": "Trachelospermum asiaticum",
+        "scientificNameAuthorship": "(Siebold & Zucc.) Nakai",
+        "genus": {
+          "scientificNameWithoutAuthor": "Trachelospermum",
+          "scientificNameAuthorship": "",
+          "scientificName": "Trachelospermum"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Apocynaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Apocynaceae"
+        },
+        "commonNames": [
+          "Asiatic jasmine",
+          "Asian jasmine"
+        ],
+        "scientificName": "Trachelospermum asiaticum (Siebold & Zucc.) Nakai"
+      },
+      "gbif": {
+        "id": "7317060"
+      },
+      "powo": {
+        "id": "82528-1"
+      }
+    },
+    {
+      "score": 0.10098,
+      "species": {
+        "scientificNameWithoutAuthor": "Gardenia taitensis",
+        "scientificNameAuthorship": "DC.",
+        "genus": {
+          "scientificNameWithoutAuthor": "Gardenia",
+          "scientificNameAuthorship": "",
+          "scientificName": "Gardenia"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Rubiaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Rubiaceae"
+        },
+        "commonNames": [
+          "Tahitian Gardenia",
+          "Tiaré flower",
+          "Tiare"
+        ],
+        "scientificName": "Gardenia taitensis DC."
+      },
+      "gbif": {
+        "id": "5335073"
+      },
+      "powo": {
+        "id": "751281-1"
+      },
+      "iucn": {
+        "id": "197645442",
+        "category": "LC"
+      }
+    },
+    {
+      "score": 0.06286,
+      "species": {
+        "scientificNameWithoutAuthor": "Jasminum nudiflorum",
+        "scientificNameAuthorship": "Lindl.",
+        "genus": {
+          "scientificNameWithoutAuthor": "Jasminum",
+          "scientificNameAuthorship": "",
+          "scientificName": "Jasminum"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Oleaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Oleaceae"
+        },
+        "commonNames": [
+          "Winter jasmine",
+          "Yellow Jasmine (పసుపు మల్లి)",
+          "Winter flowering jasmine"
+        ],
+        "scientificName": "Jasminum nudiflorum Lindl."
+      },
+      "gbif": {
+        "id": "3172266"
+      },
+      "powo": {
+        "id": "609662-1"
+      }
+    },
+    {
+      "score": 0.06217,
+      "species": {
+        "scientificNameWithoutAuthor": "Araujia sericifera",
+        "scientificNameAuthorship": "Brot.",
+        "genus": {
+          "scientificNameWithoutAuthor": "Araujia",
+          "scientificNameAuthorship": "",
+          "scientificName": "Araujia"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Apocynaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Apocynaceae"
+        },
+        "commonNames": [
+          "White bladderflower",
+          "Bladder flower",
+          "Moth catcher"
+        ],
+        "scientificName": "Araujia sericifera Brot."
+      },
+      "gbif": {
+        "id": "3170442"
+      },
+      "powo": {
+        "id": "30117279-2"
+      }
+    },
+    {
+      "score": 0.02389,
+      "species": {
+        "scientificNameWithoutAuthor": "Jasminum sambac",
+        "scientificNameAuthorship": "(L.) Aiton",
+        "genus": {
+          "scientificNameWithoutAuthor": "Jasminum",
+          "scientificNameAuthorship": "",
+          "scientificName": "Jasminum"
+        },
+        "family": {
+          "scientificNameWithoutAuthor": "Oleaceae",
+          "scientificNameAuthorship": "",
+          "scientificName": "Oleaceae"
+        },
+        "commonNames": [
+          "Arabian jasmine",
+          "Sambac jasmine",
+          "Mogra"
+        ],
+        "scientificName": "Jasminum sambac (L.) Aiton"
+      },
+      "gbif": {
+        "id": "7587215"
+      },
+      "powo": {
+        "id": "609755-1"
+      }
+    }
+  ],
+  "version": "2026-03-20 (7.5)",
+  "remainingIdentificationRequests": 497
+}

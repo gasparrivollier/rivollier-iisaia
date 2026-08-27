@@ -37,15 +37,17 @@ Source docs browsed: getting-started (introduction, pro-plan, faq), api (openapi
 **Response** (key fields):
 ```json
 {
-  "query": { "project": "...", "images": [...], "organs": [...] },
-  "predictedOrgans": [{ "image": "...", "organ": "...", "score": 0.9 }],
+  "query": { "project": "...", "images": [...], "organs": [...], "includeRelatedImages": false, "noReject": false, "type": null },
+  "predictedOrgans": [{ "image": "...", "filename": "...", "organ": "...", "score": 0.9 }],
   "language": "en",
+  "preferedReferential": "...",
   "bestMatch": "Genus species",
   "results": [
     {
       "score": 0.87,
       "species": {
         "scientificNameWithoutAuthor": "...",
+        "scientificNameAuthorship": "...",
         "scientificName": "...",
         "genus": { "...": "..." },
         "family": { "...": "..." },
@@ -64,6 +66,9 @@ Source docs browsed: getting-started (introduction, pro-plan, faq), api (openapi
 - `results` sorted by descending confidence.
 - `gbif.id` can be cross-referenced against the GBIF species API for extra data (vernacular names, etc).
 - `remainingIdentificationRequests` doubles as a lightweight quota check.
+- `predictedOrgans[*].filename` echoes back the original uploaded filename alongside the opaque `image` id — undocumented in the official reference but confirmed live; useful for mapping per-image organ feedback back to the photo the user actually took, without having to track the opaque id yourself.
+- `preferedReferential` appears at the top level of the response — also not covered in the official docs; seen holding a taxonomic backbone identifier in testing, not yet explored further.
+- A full real response (5-image multipart request, `project=all`) is saved at `docs/examples/plantnet-identify-response.json` for reference — generated via `scripts/test_plantnet.py --save-raw`.
 
 **Rejection behavior**: non-plant images → `404 Species not found`. Pass `no-reject=true` to force plant predictions anyway (still 404s if literally no plant-shaped signal at any confidence).
 

@@ -6,6 +6,50 @@ Newest entries go at the **top**. See `CLAUDE.md` for the logging instructions C
 
 ---
 
+## 2026-08-26 — Test identify with 5 images, capture a real response example, update API doc
+
+**Prompt (paraphrased):** Confirmed the request is multipart (asked if that's documented — pointed to `docs/plantnet-api.md`). Asked to test the script with 5 photos, then to save an example of the raw response, then to update the API doc with anything undocumented found in it.
+
+**Actions taken:**
+1. Ran `scripts/test_plantnet.py` with 5 images from `assets/plants/jazmin/` (`jazmin_1.png` + 4 "Pasted image" files) — same `bestMatch` (*Murraya paniculata*, 88.93%), but more jasmine-like species appeared in the top-5 due to mixed organs/angles across shots. Quota dropped by 1 (multi-image counts as a single identify call).
+2. Added a `--save-raw <path>` flag to `scripts/test_plantnet.py` that dumps the full JSON response via `json.dumps(..., indent=2)`.
+3. Re-ran the same 5-image request with `--save-raw docs/examples/plantnet-identify-response.json` to capture a real example response (consumed 1 more credit; quota 497 remaining after).
+4. Inspected the saved JSON to find fields not covered in `docs/plantnet-api.md`: `predictedOrgans[*].filename` (echoes the original uploaded filename next to the opaque image id) and a top-level `preferedReferential` field.
+5. Updated `docs/plantnet-api.md`'s response example and added notes documenting both undocumented fields, plus a pointer to the saved example file.
+
+**Files changed:**
+- `scripts/test_plantnet.py` (edited) — added `--save-raw` flag for dumping the full JSON response to a file.
+- `docs/examples/plantnet-identify-response.json` (new) — real captured response from a 5-image identify call on the jazmín photos.
+- `docs/plantnet-api.md` (edited) — response example updated with `filename`/`preferedReferential`/`scientificNameAuthorship`/`includeRelatedImages`/`noReject`/`type` fields; added notes on the two undocumented fields and a reference to the saved example.
+
+**Notes / caveats:**
+- Two live API calls made this session (5-image identify, twice) — each counts as 1 identify credit regardless of image count. Quota went from 499 → 497.
+- `preferedReferential`'s meaning wasn't investigated further (held a taxonomic backbone identifier in this response) — worth digging into if referential/floras become relevant to Yvoty's design.
+
+---
+
+## 2026-08-26 — Draft script to smoke-test the Pl@ntNet identify API
+
+**Prompt (paraphrased):** Wanted a quick draft script to test the Pl@ntNet API and asked what methods were available. Later pointed at sample photos saved under `assets/plants/` to run a live test.
+
+**Actions taken:**
+1. Reviewed `docs/plantnet-api.md` and summarized available Pl@ntNet endpoints for the user (identify, diseases, varieties, survey/tiles, projects, languages, status, subscription, quota).
+2. Asked the user to pick scope/language via AskUserQuestion; user chose a Python script hitting `POST /v2/identify/all` with a sample image.
+3. Checked environment: `requests` available, `python-dotenv` not installed, `.env` already holds `PLANTNET_API_KEY` and is git-ignored.
+4. Wrote `scripts/test_plantnet.py` — parses `.env` manually (no new dependency), POSTs image(s) to `/v2/identify/all`, prints `bestMatch`, top 5 scored results with common names, and `remainingIdentificationRequests`.
+5. User pointed to real sample photos at `assets/plants/jazmin/` and `assets/plants/nomeolvides/` (PNG files). Fixed the script's file upload to use `mimetypes.guess_type()` instead of a hardcoded `image/jpeg` content type so PNGs are sent correctly.
+6. Ran `python3 scripts/test_plantnet.py assets/plants/jazmin/jazmin_1.png` live against the real Pl@ntNet API — confirmed working end-to-end: identified as *Murraya paniculata* (Orange Jasmine) at 88.93% confidence, 499 requests remaining in quota after the call.
+
+**Files changed:**
+- `scripts/test_plantnet.py` (new) — draft CLI smoke-test script for the Pl@ntNet identify endpoint.
+
+**Notes / caveats:**
+- This call consumed 1 real identification credit against the user's Pl@ntNet quota (free plan).
+- `assets/plants/jazmin/` and `assets/plants/nomeolvides/` contain user-provided sample photos (mix of PNG screenshots/"Pasted image" files) — not yet reviewed for whether all should be tracked in git long-term.
+- Script is a throwaway draft/smoke-test, not app code — no tests, no error handling beyond what `requests.raise_for_status()` gives.
+
+---
+
 ## 2026-08-26 — Diagram the architecture (drawio) and lock in MinIO for image storage
 
 **Prompt (paraphrased):** Generate a block architecture diagram using drawio. Use the online editor. Add a user actor to the diagram. Confirmed image storage will be MinIO, self-hosted (not just for local dev, but production too).
