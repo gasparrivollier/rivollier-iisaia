@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..600;1,8..60,500&display=swap');
+
+:root {
+  --ink: oklch(0.28 0.03 55);
+  --ink-soft: oklch(0.45 0.025 55);
+  --ink-faint: oklch(0.6 0.02 55);
+  --paper: oklch(0.965 0.016 82);
+  --paper-raised: oklch(0.99 0.008 82);
+  --line: oklch(0.5 0.03 60 / 0.16);
+  --line-strong: oklch(0.4 0.03 60 / 0.3);
+  --forest: oklch(0.42 0.1 150);
+  --forest-soft: oklch(0.42 0.1 150 / 0.12);
+  --terracotta: oklch(0.55 0.13 45);
+  --terracotta-soft: oklch(0.55 0.13 45 / 0.14);
+  --gold: oklch(0.72 0.11 85);
+  --gold-soft: oklch(0.72 0.11 85 / 0.18);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Figtree', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--forest); }
+a:hover { color: var(--terracotta); }
+
+.serif { font-family: 'Source Serif 4', Georgia, serif; }
+.serif-i { font-family: 'Source Serif 4', Georgia, serif; font-style: italic; }
+
+.paper-tex {
+  background-image:
+    repeating-linear-gradient(115deg, oklch(0.5 0.03 60 / 0.025) 0px, oklch(0.5 0.03 60 / 0.025) 1px, transparent 1px, transparent 5px);
+}
+
+.journal-card {
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 1px 2px oklch(0.28 0.03 55 / 0.06);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 100px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper-raised);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+}
+.chip.on {
+  background: var(--forest);
+  border-color: var(--forest);
+  color: var(--paper);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: var(--forest-soft);
+  color: var(--forest);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.tag.terracotta { background: var(--terracotta-soft); color: var(--terracotta); }
+.tag.gold { background: var(--gold-soft); color: oklch(0.5 0.11 85); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 8px;
+  font-family: 'Figtree', sans-serif;
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+}
+.btn-primary { background: var(--forest); color: var(--paper); }
+.btn-primary:hover { background: oklch(0.38 0.1 150); }
+.btn-ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line-strong); }
+.btn-ghost:hover { border-color: var(--forest); color: var(--forest); }
+
+.scorebar-track {
+  height: 6px;
+  border-radius: 100px;
+  background: var(--line);
+  overflow: hidden;
+}
+.scorebar-fill {
+  height: 100%;
+  border-radius: 100px;
+  background: var(--forest);
+}
+
+.sketch-placeholder {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background:
+    repeating-linear-gradient(135deg, oklch(0.42 0.1 150 / 0.08) 0px, oklch(0.42 0.1 150 / 0.08) 1px, transparent 1px, transparent 9px),
+    var(--forest-soft);
+  border: 1px dashed var(--line-strong);
+  overflow: hidden;
+}
+.sketch-placeholder .label {
+  font-family: ui-monospace, 'SF Mono', monospace;
+  font-size: 10.5px;
+  color: var(--forest);
+  background: var(--paper-raised);
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin: 8px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.nav-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.nav-back:hover { color: var(--ink); }
+.nav-back:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; border-radius: 4px; }
+
+.nav-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.nav-action {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--forest);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.quota-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: 100px;
+  padding: 5px 11px;
+}
+
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--forest); flex: none; }

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="./support.js"></script>
+  </head>
+  <body>
+    <x-dc>
+      <helmet data-dc-atomics="">
+        <link rel="stylesheet" href="./tokens.css">
+        <style>
+          .frame { width: 100%; max-width: 430px; min-height: 100dvh; margin: 0 auto; background: var(--paper); display: flex; flex-direction: column; }
+          .hero {
+            position: relative;
+            margin: 16px 20px 0;
+            height: 300px;
+            border-radius: 10px;
+            overflow: hidden;
+          }
+          .corner { position: absolute; width: 22px; height: 22px; border-color: var(--paper); }
+          .corner.tl { top: 12px; left: 12px; border-top: 2.5px solid; border-left: 2.5px solid; }
+          .corner.tr { top: 12px; right: 12px; border-top: 2.5px solid; border-right: 2.5px solid; }
+          .corner.bl { bottom: 12px; left: 12px; border-bottom: 2.5px solid; border-left: 2.5px solid; }
+          .corner.br { bottom: 12px; right: 12px; border-bottom: 2.5px solid; border-right: 2.5px solid; }
+          .shutter-row { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 18px; }
+          .expand-hint {
+            position: absolute; top: 12px; right: 42px;
+            display: flex; align-items: center; gap: 5px;
+            padding: 5px 10px; border-radius: 100px;
+            background: oklch(0.28 0.03 55 / 0.42); backdrop-filter: blur(2px);
+            font-size: 11px; font-weight: 600; letter-spacing: 0.01em; color: var(--paper);
+          }
+          .shutter {
+            width: 68px; height: 68px; border-radius: 50%;
+            background: var(--paper-raised); border: 3px solid var(--forest);
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 3px 10px oklch(0.28 0.03 55 / 0.18);
+          }
+          .shutter::after { content: ""; width: 46px; height: 46px; border-radius: 50%; background: var(--forest); }
+          .thumb-slot {
+            width: 58px; height: 58px; border-radius: 7px; flex: none;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 10px; font-weight: 600; color: var(--ink-faint);
+          }
+          .thumb-slot.filled { background: var(--forest-soft); border: 1px solid var(--line-strong); color: var(--forest); font-family: ui-monospace, monospace; font-size: 9px; text-align: center; }
+          .thumb-slot.empty { border: 1.5px dashed var(--line-strong); }
+          .notes-box {
+            width: 100%; resize: none; font: inherit; font-size: 13.5px; line-height: 1.5;
+            color: var(--ink); background: var(--paper-raised);
+            border: 1px solid var(--line-strong); border-radius: 9px; padding: 11px 13px;
+          }
+          .notes-box::placeholder { color: var(--ink-faint); }
+          .notes-box:focus { outline: none; border-color: var(--forest); }
+          .sticky-cta { position: sticky; bottom: 0; background: linear-gradient(to top, var(--paper) 70%, transparent); padding: 20px 20px 26px; margin-top: auto; }
+        </style>
+      </helmet>
+      <div class="frame">
+        <div class="topbar">
+          <div class="fx ac gap8">
+            <span class="serif" style="font-size:19px;font-weight:600;">New Specimen</span>
+          </div>
+          <div class="quota-pill"><span class="dot"></span>{{ quotaRemaining }} ids left today</div>
+        </div>
+
+        <div class="fx col gap6" style="padding:18px 20px 0;">
+          <div class="serif-i" style="font-size:13.5px;color:var(--ink-soft);">Field notes</div>
+          <div style="font-size:13px;color:var(--ink-faint);line-height:1.5;">Flower or fruit shots identify best. Capture up to 5 angles of the same plant.</div>
+        </div>
+
+        <div class="hero sketch-placeholder" style="width: 397px; height: 343px">
+          <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+          <div class="label">live viewfinder<br>[ camera preview ]</div>
+          <div class="expand-hint">⛶ Tap to expand</div>
+        </div>
+
+        <div class="shutter-row">
+          <div class="shutter" data-comment-anchor="1b86962d67-div"></div>
+        </div>
+
+        <div class="fx col gap10" style="padding:28px 20px 0;" data-comment-anchor="aef9f1226d-div">
+          <div class="fx jb ac">
+            <span style="font-size:13px;font-weight:600;color:var(--ink-soft);">This session</span>
+            <span style="font-size:13px;color:var(--ink-faint);">{{ shotCount }}/5 photos</span>
+          </div>
+          <div class="fx gap10">
+            <sc-for list="{{ shots }}" as="s">
+              <div class="thumb-slot {{ s.stateClass }}">{{ s.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div class="fx col gap8" style="padding:24px 20px 0;">
+          <div class="fx jb ac">
+            <span style="font-size:13px;font-weight:600;color:var(--ink-soft);">Notes</span>
+            <span style="font-size:12px;color:var(--ink-faint);">optional</span>
+          </div>
+          <textarea class="notes-box" rows="3" placeholder="Where you found it, smell, soil, anything odd…"></textarea>
+        </div>
+
+        <div class="sticky-cta fx col gap10">
+          <button class="btn btn-primary" style="width:100%;">Identify this plant</button>
+        </div>
+      </div>
+    </x-dc>
+    <script
+      type="text/x-dc"
+      data-dc-script
+      data-props='{
+  "$preview": { "width": 390, "height": 844 }
+}'
+    >
+      class Component extends DCLogic {
+        renderVals() {
+          return {
+            quotaRemaining: 481,
+            shotCount: 3,
+            shots: [
+              { stateClass: "filled", label: "flower" },
+              { stateClass: "filled", label: "leaf" },
+              { stateClass: "filled", label: "leaf" },
+              { stateClass: "empty", label: "" },
+              { stateClass: "empty", label: "" },
+            ],
+          };
+        }
+      }
+    </script>
+  </body>
+</html>

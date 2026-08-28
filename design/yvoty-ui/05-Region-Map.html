@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Region Map</title>
+    <link rel="stylesheet" href="./tokens.css" />
+    <script src="https://unpkg.com/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/topojson-client@3.1.0/dist/topojson-client.min.js" integrity="sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67" crossorigin="anonymous"></script>
+    <style>
+      .frame { width: 100%; max-width: 430px; min-height: 100dvh; margin: 0 auto; background: var(--paper); display: flex; flex-direction: column; }
+      .map-wrap { position: relative; margin: 14px 20px 0; padding: 8px 0 4px; }
+      .map-wrap svg { display: block; width: 100%; height: auto; touch-action: manipulation; }
+      .ar-land { fill: #efe9dc; stroke: #b9ae98; stroke-width: 1; }
+      .prov { cursor: pointer; }
+      .prov circle { stroke: #2c6b46; stroke-width: 1.2; transition: r 120ms ease; }
+      .prov.sel circle { stroke: #b5642f; stroke-width: 2.4; }
+      .prov-shape { cursor: pointer; stroke: #efe9dc; stroke-width: 1.2; opacity: 0.5; transition: opacity 140ms ease; }
+      .prov-shape.sel { opacity: 1; filter: drop-shadow(0 3px 5px rgba(40, 32, 20, 0.28)); }
+      .legend { display: flex; align-items: center; gap: 10px; padding: 10px 20px 0; font-size: 11.5px; color: var(--ink-faint); }
+      .legend .swatches { display: flex; gap: 4px; }
+      .legend .sw { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--forest); }
+      .detail { margin: 16px 20px 0; padding: 15px 16px 16px; display: flex; flex-direction: column; gap: 11px; }
+      .bar { height: 7px; border-radius: 100px; background: var(--forest-soft); overflow: hidden; }
+      .bar-fill { height: 100%; border-radius: 100px; background: var(--forest); }
+      .species { display: flex; flex-direction: column; gap: 0; }
+      .sp-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+      .sp-row:first-child { border-top: none; }
+      .sp-mark { width: 20px; height: 20px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; }
+      .sp-mark.have { background: var(--forest); color: var(--paper); }
+      .sp-mark.miss { border: 1.5px dashed var(--line-strong); color: var(--ink-faint); }
+      .sp-name { font-size: 13.5px; font-weight: 600; }
+      .sp-sci { font-size: 12.5px; color: var(--ink-soft); }
+      .rank-list { padding: 18px 20px 34px; display: flex; flex-direction: column; gap: 8px; }
+      .rank-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+      .rank-row .nm { flex: 1; color: var(--ink-soft); }
+      .rank-row .track { width: 96px; height: 5px; border-radius: 100px; background: var(--forest-soft); overflow: hidden; flex: none; }
+      .rank-row .track i { display: block; height: 100%; background: var(--forest); }
+      .rank-row .num { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--ink-faint); width: 44px; text-align: right; flex: none; }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <div class="topbar">
+        <a class="nav-back" href="./04-Diary.dc.html">&larr; Diary</a>
+        <div style="text-align:right;">
+          <div class="serif nav-title">Native species by province</div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span>Catalogued</span>
+        <span class="swatches">
+          <span class="sw" style="background:#dae3d6;"></span>
+          <span class="sw" style="background:#96bda2;"></span>
+          <span class="sw" style="background:#54916b;"></span>
+          <span class="sw" style="background:#2c6b46;"></span>
+        </span>
+        <span>none &rarr; complete &middot; tap a province</span>
+      </div>
+
+      <div class="map-wrap" id="map"></div>
+
+      <div class="detail journal-card" id="detail"></div>
+
+      <div class="rank-list" id="ranks"></div>
+    </div>
+
+    <script>
+      const PROVINCES = [
+        { name: "Jujuy", lat: -23.3, lon: -65.7, have: 9, total: 41 },
+        { name: "Salta", lat: -24.8, lon: -64.8, have: 14, total: 58 },
+        { name: "Formosa", lat: -24.8, lon: -59.9, have: 3, total: 44 },
+        { name: "Chaco", lat: -26.4, lon: -60.5, have: 5, total: 46 },
+        { name: "Tucumán", lat: -26.9, lon: -65.3, have: 11, total: 39 },
+        { name: "Misiones", lat: -27.0, lon: -54.8, have: 21, total: 62 },
+        { name: "Catamarca", lat: -27.4, lon: -67.0, have: 4, total: 37 },
+        { name: "Santiago del Estero", lat: -27.8, lon: -63.3, have: 2, total: 35 },
+        { name: "Corrientes", lat: -28.7, lon: -57.8, have: 7, total: 48 },
+        { name: "La Rioja", lat: -29.9, lon: -67.2, have: 3, total: 33 },
+        { name: "Santa Fe", lat: -30.7, lon: -60.9, have: 12, total: 40 },
+        { name: "San Juan", lat: -31.0, lon: -68.8, have: 5, total: 31 },
+        { name: "Entre Ríos", lat: -32.0, lon: -59.2, have: 10, total: 42 },
+        { name: "Córdoba", lat: -32.1, lon: -63.8, have: 19, total: 45 },
+        { name: "San Luis", lat: -33.7, lon: -66.0, have: 6, total: 30 },
+        { name: "Ciudad de Buenos Aires", lat: -34.6, lon: -58.4, have: 24, total: 26 },
+        { name: "Mendoza", lat: -34.6, lon: -68.6, have: 13, total: 38 },
+        { name: "Buenos Aires", lat: -36.4, lon: -60.0, have: 28, total: 52 },
+        { name: "La Pampa", lat: -37.1, lon: -65.9, have: 4, total: 29 },
+        { name: "Neuquén", lat: -38.7, lon: -70.0, have: 8, total: 36 },
+        { name: "Río Negro", lat: -40.4, lon: -67.0, have: 6, total: 34 },
+        { name: "Chubut", lat: -43.8, lon: -68.5, have: 5, total: 32 },
+        { name: "Santa Cruz", lat: -48.8, lon: -70.0, have: 2, total: 27 },
+        { name: "Tierra del Fuego", lat: -54.0, lon: -67.6, have: 1, total: 18 },
+      ];
+
+      const SPECIES = {
+        "Misiones": [
+          { n: "Pino paraná", s: "Araucaria angustifolia", have: true },
+          { n: "Cedro misionero", s: "Cedrela fissilis", have: true },
+          { n: "Palo rosa", s: "Aspidosperma polyneuron", have: false },
+          { n: "Yerba mate", s: "Ilex paraguariensis", have: true },
+          { n: "Guatambú blanco", s: "Balfourodendron riedelianum", have: false },
+        ],
+        "Buenos Aires": [
+          { n: "Ceibo", s: "Erythrina crista-galli", have: true },
+          { n: "Tala", s: "Celtis tala", have: true },
+          { n: "Coronillo", s: "Scutia buxifolia", have: true },
+          { n: "Cortadera", s: "Cortaderia selloana", have: false },
+          { n: "Seibo de flor blanca", s: "Sesbania punicea", have: false },
+        ],
+        "Salta": [
+          { n: "Cebil colorado", s: "Anadenanthera colubrina", have: true },
+          { n: "Nogal criollo", s: "Juglans australis", have: false },
+          { n: "Pino del cerro", s: "Podocarpus parlatorei", have: false },
+          { n: "Cardón", s: "Echinopsis atacamensis", have: true },
+          { n: "Tipa blanca", s: "Tipuana tipu", have: true },
+        ],
+        "Neuquén": [
+          { n: "Ñire", s: "Nothofagus antarctica", have: true },
+          { n: "Ciprés de la cordillera", s: "Austrocedrus chilensis", have: true },
+          { n: "Araucaria", s: "Araucaria araucana", have: false },
+          { n: "Coihue", s: "Nothofagus dombeyi", have: false },
+          { n: "Notro", s: "Embothrium coccineum", have: false },
+        ],
+        "Tierra del Fuego": [
+          { n: "Lenga", s: "Nothofagus pumilio", have: true },
+          { n: "Guindo", s: "Nothofagus betuloides", have: false },
+          { n: "Canelo", s: "Drimys winteri", have: false },
+          { n: "Calafate", s: "Berberis microphylla", have: false },
+          { n: "Frutilla del diablo", s: "Gunnera magellanica", have: false },
+        ],
+        "Mendoza": [
+          { n: "Algarrobo dulce", s: "Neltuma flexuosa", have: true },
+          { n: "Jarilla", s: "Larrea divaricata", have: true },
+          { n: "Chañar", s: "Geoffroea decorticans", have: false },
+          { n: "Retamo", s: "Bulnesia retama", have: false },
+          { n: "Molle de beber", s: "Lithraea molleoides", have: false },
+        ],
+        default: [
+          { n: "Ceibo", s: "Erythrina crista-galli", have: true },
+          { n: "Jacarandá", s: "Jacaranda mimosifolia", have: true },
+          { n: "Aguaribay", s: "Schinus molle", have: false },
+          { n: "Chañar", s: "Geoffroea decorticans", have: false },
+          { n: "Algarrobo blanco", s: "Neltuma alba", have: false },
+        ],
+      };
+
+      const state = { sel: "Buenos Aires" };
+
+      function ratio(p) { return p.have / p.total; }
+      function fillFor(r) {
+        if (r >= 0.85) return "#2c6b46";
+        if (r >= 0.5) return "#54916b";
+        if (r >= 0.2) return "#96bda2";
+        return "#dae3d6";
+      }
+
+      function renderDetail() {
+        const p = PROVINCES.find(x => x.name === state.sel);
+        const pct = Math.round(ratio(p) * 100);
+        const list = (SPECIES[p.name] || SPECIES.default)
+          .map(s => `<div class="sp-row">
+              <span class="sp-mark ${s.have ? "have" : "miss"}">${s.have ? "&#10003;" : "?"}</span>
+              <span><span class="sp-name">${s.n}</span><br/><span class="serif-i sp-sci">${s.s}</span></span>
+            </div>`).join("");
+        document.getElementById("detail").innerHTML = `
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+            <span class="serif" style="font-size:18px;font-weight:600;">${p.name}</span>
+            <span style="font-family:ui-monospace,monospace;font-size:12.5px;font-weight:600;color:var(--forest);">${p.have}/${p.total}</span>
+          </div>
+          <div class="bar"><div class="bar-fill" style="width:${pct}%;"></div></div>
+          <div style="font-size:12px;color:var(--ink-faint);">${pct}% of native species catalogued here &middot; sample list</div>
+          <div class="species">${list}</div>`;
+      }
+
+      function renderRanks() {
+        const rows = [...PROVINCES].sort((a, b) => ratio(b) - ratio(a)).slice(0, 6).map(p => `
+          <div class="rank-row">
+            <span class="nm">${p.name}</span>
+            <span class="track"><i style="width:${Math.round(ratio(p) * 100)}%;"></i></span>
+            <span class="num">${p.have}/${p.total}</span>
+          </div>`).join("");
+        document.getElementById("ranks").innerHTML =
+          `<div style="font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;">Your strongest provinces</div>${rows}`;
+      }
+
+      (async function () {
+        const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+        const byName = new Map(PROVINCES.map(p => [norm(p.name), p]));
+
+        // Source rings mix winding; d3's spherical path needs CCW or it fills the globe.
+        const rewind = f => ({
+          ...f,
+          geometry: {
+            type: "MultiPolygon",
+            coordinates: f.geometry.coordinates.map(poly => poly.map(ring => {
+              const a = d3.geoArea({ type: "Polygon", coordinates: [ring] });
+              return a > 2 * Math.PI ? ring.slice().reverse() : ring;
+            }))
+          }
+        });
+
+        const gj = await d3.json("./data/ar-lowpoly.geojson");
+        const feats = (gj.features || []).map(rewind);
+        const context = feats.filter(f => f.properties.kind !== "provincia");
+        const provinces = feats
+          .filter(f => f.properties.kind === "provincia")
+          .map(f => ({ f, p: byName.get(norm(f.properties.name)) }))
+          .filter(d => d.p);
+
+        const W = 390, H = 560;
+        let x0 = 180, y0 = 90, x1 = -180, y1 = -90;
+        for (const d of provinces)
+          for (const poly of d.f.geometry.coordinates)
+            for (const ring of poly)
+              for (const [x, y] of ring) {
+                if (x < x0) x0 = x; if (x > x1) x1 = x;
+                if (y < y0) y0 = y; if (y > y1) y1 = y;
+              }
+        const fitTo = { type: "MultiPoint", coordinates: [[x0, y0], [x1, y0], [x1, y1], [x0, y1]] };
+        const proj = d3.geoMercator().fitExtent([[16, 10], [W - 16, H - 10]], fitTo);
+        const path = d3.geoPath(proj);
+
+        // Labels sit on the largest ring, and on an interior point: concave provinces
+        // (Salta wrapping Jujuy) push their area centroid outside the shape.
+        const mainCentroid = f => {
+          let best = null, area = -1;
+          for (const poly of f.geometry.coordinates) {
+            const a = Math.abs(d3.polygonArea(poly[0]));
+            if (a > area) { area = a; best = poly; }
+          }
+          const ring = best[0].map(c => proj(c));
+          const c = path.centroid({ type: "Polygon", coordinates: best });
+          if (d3.polygonContains(ring, c)) return c;
+          // Pole of inaccessibility by grid sampling: deepest point from every edge.
+          const xs = ring.map(p => p[0]), ys = ring.map(p => p[1]);
+          const bx0 = Math.min(...xs), bx1 = Math.max(...xs);
+          const by0 = Math.min(...ys), by1 = Math.max(...ys);
+          const segDist = (p) => {
+            let m = Infinity;
+            for (let i = 0; i < ring.length - 1; i++) {
+              const [ax, ay] = ring[i], [bx, by] = ring[i + 1];
+              const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+              let t = l2 ? ((p[0] - ax) * dx + (p[1] - ay) * dy) / l2 : 0;
+              t = Math.max(0, Math.min(1, t));
+              m = Math.min(m, Math.hypot(p[0] - (ax + t * dx), p[1] - (ay + t * dy)));
+            }
+            return m;
+          };
+          let bestPt = c, bestD = -1;
+          const N = 24;
+          for (let i = 1; i < N; i++)
+            for (let j = 1; j < N; j++) {
+              const p = [bx0 + (bx1 - bx0) * i / N, by0 + (by1 - by0) * j / N];
+              if (!d3.polygonContains(ring, p)) continue;
+              const d = segDist(p);
+              if (d > bestD) { bestD = d; bestPt = p; }
+            }
+          return bestPt;
+        };
+
+        const svg = d3.select("#map").append("svg").attr("viewBox", `0 0 ${W} ${H}`);
+        svg.append("g").selectAll("path").data(context).join("path")
+          .attr("d", path).attr("fill", "#efe9dc")
+          .attr("stroke", "#cfc6b4").attr("stroke-width", 0.8);
+
+        const g = svg.append("g");
+        const labels = svg.append("g");
+
+        const shapes = g.selectAll("path").data(provinces).join("path")
+          .attr("class", d => "prov-shape" + (d.p.name === state.sel ? " sel" : ""))
+          .attr("d", d => path(d.f))
+          .attr("fill", d => fillFor(ratio(d.p)))
+          .on("click", (e, d) => {
+            state.sel = d.p.name;
+            shapes.attr("class", x => "prov-shape" + (x.p.name === state.sel ? " sel" : ""));
+            shapes.filter(x => x.p.name === state.sel).raise();
+            labels.raise();
+            renderDetail();
+          });
+
+        labels.selectAll("text")
+          .data(provinces.filter(d => d.p.name !== "Ciudad de Buenos Aires")).join("text")
+          .attr("transform", d => `translate(${mainCentroid(d.f).join(",")})`)
+          .text(d => d.p.have)
+          .attr("text-anchor", "middle").attr("dy", 3.5)
+          .attr("font-size", 11).attr("font-weight", 700)
+          .attr("fill", d => ratio(d.p) >= 0.5 ? "#fbf7ee" : "#25543a")
+          .attr("pointer-events", "none");
+
+        // CABA is only a few px wide: label it outside with a short leader.
+        const caba = provinces.find(d => d.p.name === "Ciudad de Buenos Aires");
+        if (caba) {
+          const [cx, cy] = mainCentroid(caba.f);
+          labels.append("line")
+            .attr("x1", cx).attr("y1", cy).attr("x2", cx + 26).attr("y2", cy + 12)
+            .attr("stroke", "#25543a").attr("stroke-width", 0.8);
+          labels.append("text").text(caba.p.have)
+            .attr("x", cx + 30).attr("y", cy + 16)
+            .attr("font-size", 11).attr("font-weight", 700)
+            .attr("fill", "#25543a").attr("pointer-events", "none");
+        }
+
+        renderDetail();
+        renderRanks();
+      })();
+    </script>
+  </body>
+</html>

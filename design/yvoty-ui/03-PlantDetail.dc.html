@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+      <helmet data-dc-atomics="">
+        <link rel="stylesheet" href="./tokens.css">
+        <script src="./image-slot.js"></script>
+        <style>
+          .frame { width: 100%; max-width: 430px; min-height: 100dvh; margin: 0 auto; background: var(--paper); display: flex; flex-direction: column; }
+          .cover-card { position: relative; margin: 0 14px; padding: 8px 8px 0; border-radius: 16px; overflow: hidden; }
+          .cover-slot { position: relative; height: 292px; border-radius: 12px; overflow: hidden; }
+          .plate { padding: 14px 12px 6px; position: relative; }
+          .fact-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 16px 20px 0; }
+          .fact { padding: 12px 14px; }
+          .fact .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin-bottom: 4px; }
+          .fact .v { font-size: 14px; color: var(--ink); }
+          .strip-thumb { width: 72px; height: 72px; border-radius: 8px; flex: none; overflow: hidden; }
+          .notes-box {
+            width: 100%; resize: none; font: inherit; font-size: 13.5px; line-height: 1.5;
+            color: var(--ink); background: var(--paper-raised);
+            border: 1px solid var(--forest); border-radius: 9px; padding: 11px 13px;
+          }
+          .notes-box::placeholder { color: var(--ink-faint); }
+          .notes-box:focus { outline: none; }
+          .notes-read {
+            font-size: 13.5px; line-height: 1.55; color: var(--ink); padding: 11px 13px;
+            border-radius: 9px; cursor: text; white-space: pre-wrap;
+          }
+          .notes-read:hover { border-color: var(--line-strong); }
+          .notes-read-empty { color: var(--ink-faint); border: 1.5px dashed var(--line-strong); }
+          .divider { border: none; border-top: 1px solid var(--line); margin: 20px 20px 0; }
+        </style>
+      </helmet>
+      <div class="frame">
+        <div class="topbar">
+          <a class="nav-back" href="./04-Diary.dc.html">← Diary</a>
+          <span class="serif nav-title">Specimen</span>
+          <span class="nav-action">Edit</span>
+        </div>
+
+        <div class="cover-card journal-card" style="margin-top: 14px;" data-comment-anchor="315e1b01f1-div">
+          <div class="cover-slot">
+            <image-slot id="plant-cover" shape="rounded" radius="12" fit="cover" placeholder="Drop your best shot"></image-slot>
+          </div>
+          <div class="plate fx col gap8">
+          <div class="fx jb ac gap10">
+            <div class="serif" style="font-size:22px; font-weight:600; line-height:1.15;">{{ nickname }}</div>
+            <span class="tag" style="flex:none;">Saved</span>
+          </div>
+          <div class="serif-i" style="font-size:15.5px; color:var(--ink-soft);">{{ scientificName }}</div>
+            <div style="font-size:13px; color:var(--ink-faint);">{{ commonNames }}</div>
+          </div>
+        </div>
+
+        <div class="fact-row">
+          <div class="fact journal-card">
+            <div class="k">Family</div>
+            <div class="v serif-i">{{ family }}</div>
+          </div>
+          <div class="fact journal-card">
+            <div class="k">Genus</div>
+            <div class="v serif-i">{{ genus }}</div>
+          </div>
+          <div class="fact journal-card">
+            <div class="k">Identified</div>
+            <div class="v">{{ dateFound }}</div>
+          </div>
+          <div class="fact journal-card">
+            <div class="k">Match confidence</div>
+            <div class="v">{{ confidence }}</div>
+          </div>
+        </div>
+
+        <hr class="divider" data-comment-anchor="a7843c5525-hr">
+
+        <div class="fx col gap8" style="padding:16px 20px 0;">
+          <div class="fx jb ac gap10">
+            <div style="font-size:13px; font-weight:600; color:var(--ink-soft);">Field notes</div>
+            <span style="font-size:11.5px; color:var(--ink-faint);">{{ notesHint }}</span>
+          </div>
+          <sc-if value="{{ editingNotes }}" hint-placeholder-val="{{ false }}">
+            <div class="fx col gap8">
+              <textarea class="notes-box" rows="4" ref="{{ notesRef }}" value="{{ notes }}" onChange="{{ onNotesChange }}" placeholder="Where you found it, smell, soil, anything odd…"></textarea>
+              <div class="fx gap8" style="justify-content:flex-end;">
+                <span class="nav-back" style="font-size:13px;" onClick="{{ cancelNotes }}">Cancel</span>
+                <span class="nav-action" style="font-size:13px;" onClick="{{ saveNotes }}">Done</span>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ showNotes }}" hint-placeholder-val="{{ true }}">
+            <div class="notes-read journal-card" onClick="{{ editNotes }}">{{ notes }}</div>
+          </sc-if>
+          <sc-if value="{{ showNotesEmpty }}" hint-placeholder-val="{{ false }}">
+            <div class="notes-read notes-read-empty" onClick="{{ editNotes }}">Add a note from the field…</div>
+          </sc-if>
+        </div>
+
+        <div class="fx col gap10" style="padding:20px 20px 24px;">
+          <div class="fx jb ac gap10">
+            <div style="font-size:13px; font-weight:600; color:var(--ink-soft);">Field photos</div>
+
+          </div>
+          <div class="fx gap10" style="overflow-x:auto;">
+            <sc-for list="{{ photos }}" as="p" hint-placeholder-count="3">
+              <div class="strip-thumb">
+                <image-slot id="{{ p.id }}" shape="rounded" radius="8" fit="cover" placeholder="{{ p.label }}"></image-slot>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: 390, &quot;height&quot;: 844 }
+}">
+class Component extends DCLogic {
+  state = {
+    editing: false,
+    notes: "Sidewalk hedge on Bulnes y Güemes, half shade. Flowers smell like orange blossom after rain — bees all over it.",
+    draft: "",
+  };
+
+  focusNotes() {
+    setTimeout(() => {
+      const el = document.querySelector(".notes-box");
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    }, 0);
+  }
+
+  renderVals() {
+    if (!this.notesRef) this.notesRef = React.createRef();
+    const { editing, notes, draft } = this.state;
+    return {
+      editingNotes: editing,
+      showNotes: !editing && !!notes,
+      showNotesEmpty: !editing && !notes,
+      notes: editing ? draft : notes,
+      notesHint: editing ? "editing" : "tap to edit",
+      notesRef: this.notesRef,
+      editNotes: () => {
+        this.setState({ editing: true, draft: this.state.notes });
+        this.focusNotes();
+      },
+      onNotesChange: (e) => this.setState({ draft: e.target.value }),
+      saveNotes: () => this.setState({ editing: false, notes: this.state.draft.trim() }),
+      cancelNotes: () => this.setState({ editing: false }),
+      nickname: "Auntie's Jessamine",
+      scientificName: "Murraya paniculata",
+      commonNames: "Orange jessamine · Mock orange · Mirto",
+      family: "Rutaceae",
+      genus: "Murraya",
+      dateFound: "Aug 21, 2026",
+      confidence: "87%",
+      photos: [
+        { id: "plant-field-1", label: "flower" },
+        { id: "plant-field-2", label: "leaf" },
+        { id: "plant-field-3", label: "bark" },
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

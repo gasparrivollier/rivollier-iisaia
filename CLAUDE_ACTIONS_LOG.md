@@ -6,6 +6,33 @@ Newest entries go at the **top**. See `CLAUDE.md` for the logging instructions C
 
 ---
 
+## 2026-08-28 — Import Claude Design UI screen drafts into repo
+
+**Prompt (paraphrased):** Asked to pull the draft UI screens from Claude Design into the repository.
+
+**Actions taken:**
+1. Authorized the `DesignSync` tool for this session via `/design-login`.
+2. Listed the user's Claude Design projects (`Nocturne`, `Modernist`, `Organic`); none matched "Yvoty UI", so asked the user for clarification and got the project URL directly (`https://claude.ai/design/p/e236b596-e63c-4abf-8d39-49d72dbcd011`).
+3. Called `DesignSync get_project` to confirm the project (id `e236b596-e63c-4abf-8d39-49d72dbcd011`, name "Yvoty UI", type `PROJECT_TYPE_PROJECT`), then `list_files` to enumerate its contents.
+4. Fetched each screen and shared-asset file with `DesignSync get_file` and wrote them into `design/yvoty-ui/` in the repo: 5 screens (`01-Capture.dc.html`, `02-Results.dc.html`, `03-PlantDetail.dc.html`, `04-Diary.dc.html`, `05-Region-Map.html`), plus `tokens.css`, `support.js`, `image-slot.js` (the DC runtime + image-slot web component used by the screens), and `data/ar-lowpoly.geojson` (the only geodata file the Region Map screen actually loads).
+5. Deliberately skipped other files present in the design project — `_ds/organic-...` (design-system tooling bundle, not app UI), `.thumbnail`, several redundant `ar-provincias-lowpoly*.geojson` variants, `uploads/arg_new.json`, `uploads/geojson-1787802403112-bfsq.json`, and the `uploads/draw-*.png` sketches — none of which are referenced by any of the 5 screens' markup/JS.
+
+**Files changed:**
+- `design/yvoty-ui/01-Capture.dc.html` (new) — capture/new-specimen screen.
+- `design/yvoty-ui/02-Results.dc.html` (new) — identification results/candidates screen.
+- `design/yvoty-ui/03-PlantDetail.dc.html` (new) — saved specimen detail screen.
+- `design/yvoty-ui/04-Diary.dc.html` (new) — "My Diary" garden grid screen.
+- `design/yvoty-ui/05-Region-Map.html` (new) — Argentina province native-species map (d3 + topojson via CDN).
+- `design/yvoty-ui/tokens.css` (new) — shared design tokens/CSS for all screens.
+- `design/yvoty-ui/support.js` (new) — generated DC component runtime the `.dc.html` screens depend on.
+- `design/yvoty-ui/image-slot.js` (new) — `<image-slot>` web component used by the PlantDetail screen.
+- `design/yvoty-ui/data/ar-lowpoly.geojson` (new) — province boundary data for the Region Map screen.
+
+**Notes / caveats:**
+- These are static design-tool exports (the `x-dc`/`sc-for`/`sc-if` custom elements and `support.js` are the Claude Design preview runtime, not a framework this app otherwise uses) — they're a visual/interaction reference for building the real UI, not production code to wire up as-is.
+- `05-Region-Map.html` pulls d3 and topojson-client from `unpkg.com` at load time; it needs network access to render when opened locally.
+- Three other design projects exist in the user's account (`Nocturne`, `Modernist`, `Organic`) — style-direction explorations, not imported since the user pointed specifically at "Yvoty UI".
+
 ## 2026-08-26 — Confirm species data shape inside `GET /v2/varieties`
 
 **Prompt (paraphrased):** Asked whether species data is present in the varieties method.
