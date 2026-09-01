@@ -6,6 +6,84 @@ Newest entries go at the **top**. See `CLAUDE.md` for the logging instructions C
 
 ---
 
+## 2026-08-28 — Run the app on the Android emulator and fix a map-rendering bug found there
+
+**Prompt (paraphrased):** Asked to see the app running on a simulated Android phone. After it was up, pointed out visually that the Region Map screen's "Catalogued" legend and its color swatches were being hidden behind the map.
+
+**Actions taken:**
+1. Booted the `yvoty_pixel` AVD. First attempt (`-gpu swiftshader_indirect`, both windowed and `-no-window`) crashed with `SIGSEGV` in `qemu-system-x86_64` both times (confirmed via `coredumpctl`) — switched to `-gpu host` after confirming a usable AMD GPU (`lspci`, `glxinfo`) was present, which booted successfully and stayed up.
+2. `flutter run -d emulator-5554` initially failed: `Toolchain installation '/usr/lib/jvm/java-25-openjdk' does not provide the required capabilities: [JAVA_COMPILER]` — root cause was that only `java-25-openjdk-headless` (a JRE, no `javac`) was installed, not a full JDK, and Fedora 44's repos no longer offer `java-17-openjdk`/`java-21-openjdk`. Fixed by pointing Flutter at Android Studio's bundled JBR instead of the system JDK: `flutter config --jdk-dir="<flatpak install path>/files/extra/jbr"`.
+3. Rebuilt and installed the app on the emulator successfully; took an `adb exec-out screencap` screenshot of the Diary screen to confirm.
+4. User spotted a real bug from that live session: on the Region Map screen, the legend row's color swatches and description text were being painted over by the map itself. Root cause: `ProvinceMapPainter` draws "context" features (neighboring countries) using the same projection fit to the *province-only* bounding box, so context geometry that extends beyond Argentina's provinces projects outside the canvas; Flutter's `CustomPaint` doesn't clip to its bounds by default (unlike an SVG viewport, which the original HTML mockup relied on implicitly), so the overflow bled upward over the legend widget above it in the layout.
+5. Fixed in `client/lib/features/region/province_painter.dart` by clipping the canvas to its own bounds (`canvas.save()` / `canvas.clipRect(Offset.zero & size)` / `canvas.restore()`) at the start/end of `paint()`.
+6. Verified: `flutter analyze` clean, relaunched on the emulator, re-screenshotted the Region Map screen — legend now renders correctly above the map.
+
+**Files changed:**
+- `client/lib/features/region/province_painter.dart` (edited) — clip the canvas to its own bounds before painting context/province shapes.
+
+**Notes / caveats:**
+- Android Studio's bundled JBR (not a system package) is now the JDK Flutter's Gradle builds use on this machine — recorded via `flutter config --jdk-dir`, so it persists across sessions without needing `JAVA_HOME` exported manually.
+- The `-gpu host` requirement means the emulator needs a real GPU on the host; if this ever runs somewhere without one, software rendering (`swiftshader_indirect`) crashed reliably here and would need further investigation (a newer/older emulator build, or a different software renderer) rather than being assumed to work.
+
+## 2026-08-28 — Fix the region map's selected-province styling to match the original design
+
+**Prompt (paraphrased):** After seeing the map live on the emulator, said the selected-province effect looked different from the Claude Design mockup and asked to make it match.
+
+**Actions taken:**
+1. Re-checked `design/yvoty-ui/05-Region-Map.html`'s actual CSS: `.prov-shape { opacity: 0.5; }` / `.prov-shape.sel { opacity: 1; filter: drop-shadow(0 3px 5px rgba(40,32,20,0.28)); }` — selection is expressed by dimming unselected provinces to 50% opacity and lifting the selected one with a drop shadow, not by a thicker border (the stroke-width-2.4 rule in that file's CSS belongs to an unused sibling selector, `.prov circle`, for a marker variant the map doesn't actually render — a misread from the initial port).
+2. Rewrote the province-drawing loop in `client/lib/features/region/province_painter.dart`: unselected provinces now draw at 50% fill/stroke opacity; the selected province draws at full opacity, gets a soft drop shadow (`MaskFilter.blur` on an offset copy of its path), and is drawn last so its shadow isn't occluded by neighboring provinces — mirroring the original's `d3` `.raise()` call on selection.
+3. Verified: `flutter analyze` clean, relaunched on the `yvoty_pixel` emulator, tapped a different province (San Juan) and screenshotted — confirmed the selected shape now sits at full opacity with a visible shadow while the rest dim to 50%, matching the mockup.
+
+**Files changed:**
+- `client/lib/features/region/province_painter.dart` (edited) — replaced the stroke-width-based selection indicator with opacity + drop-shadow + z-order-raise, matching the original CSS.
+
+## 2026-08-28 — Scaffold the Flutter client and build all 5 screens against mock data
+
+**Prompt (paraphrased):** Planned (in plan mode) turning the 5 `design/yvoty-ui/*.dc.html` mockups into a real Flutter client per `docs/architecture.md`, with UI built first against an in-memory mock data layer (backend doesn't exist yet) and the Region Map treated as a full 5th screen. After environment setup, user said "go ahead" to implement.
+
+**Actions taken:**
+1. `flutter create --platforms=android,web --org com.yvoty --project-name yvoty client` at repo root; restructured `client/lib/` into `core/` (theme, routing, shared widgets), `data/` (models, repositories), `features/` (garden, identify, plants, region), per `docs/architecture.md`'s repo layout.
+2. Added `google_fonts`, `go_router`, `provider` to `pubspec.yaml`.
+3. Ported `design/yvoty-ui/tokens.css` to `client/lib/core/theme.dart`: converted every `oklch(...)` token to sRGB hex via a one-off OKLab/OKLCH→linear-sRGB conversion (computed with a Python script, not a package), reproduced as `AppColors` constants with alpha variants applied via `.withValues(alpha:)`; wired Figtree (body) + Source Serif 4 (`.serif`/`.serif-i` accents) through `google_fonts` and a `YvotyTypography` `ThemeExtension`.
+4. Built a shared widget kit (`core/widgets/`) from the CSS classes repeated across all 5 mockups: `JournalCard`, `AppTopBar`, `QuotaPill`/`PillTag`/`AppChip`, `ScoreBar`, `SketchPlaceholder` (a hatched placeholder standing in for real photos until camera/storage exist).
+5. Built the mock data layer (`data/models/`, `data/repositories/`): `IdentificationResult`, `Plant`, `Province`/`RegionSpecies` models; `IdentifyRepository`, `PlantsRepository`, `RegionRepository` interfaces each with an in-memory `Fake*` implementation seeded from the literal sample data embedded in the mockups' `renderVals()`/`PROVINCES`/`SPECIES` JS objects, wired at the app root via `provider`.
+6. Built all 5 screens as Flutter widgets: `features/garden/diary_screen.dart` (04-Diary — grid + progress card + FAB), `features/identify/capture_screen.dart` (01-Capture — placeholder viewfinder, shutter, up-to-5 shot slots, notes), `features/identify/results_screen.dart` (02-Results — ranked candidates, save-to-garden), `features/plants/plant_detail_screen.dart` (03-PlantDetail — fact grid, inline-editable notes, photo strip), `features/region/region_map_screen.dart` (05-Region-Map).
+7. For the Region Map, copied `design/yvoty-ui/data/ar-lowpoly.geojson` into `client/assets/data/` (registered in `pubspec.yaml`) and wrote `features/region/province_geometry.dart` (parses the GeoJSON, computes an equirectangular fit, builds a `Path` per province/context feature) + `province_painter.dart` (a `CustomPainter` filling provinces by catalogued-species ratio, matching the original mockup's d3 `fillFor()` logic) — replacing the original's d3+topojson-over-CDN approach with the canvas-based rendering `docs/architecture.md` already commits to for the animated garden view.
+8. `core/routing.dart`: `go_router` table wiring `/` (Diary) ↔ `/capture` ↔ `/results` ↔ `/plants/:id`, and `/region`, matching the mockups' back-navigation.
+9. Appended a **Data model addition** section to `docs/architecture.md` for `provinces` and `region_species` reference tables (geometry ships as a bundled asset, not DB rows; per-province coverage is computed at query time by joining `plants.scientific_name`, no new junction table) — flagged that populating `region_species` beyond the mockup's 5-province sample is a follow-up data-curation task.
+10. Verified: `flutter analyze` (clean), `flutter build web` (succeeds), then wrote `client/test/app_flow_test.dart` (a `flutter_test` widget test, not a real-browser integration test — `flutter test` reported "Web devices are not supported for integration tests yet" for the `integration_test` package) driving the full flow: Diary → Capture (shutter tap) → Results → save → PlantDetail (inline note edit) → back to Diary → Region Map (tap a province, confirm the detail card updates). Also launched `flutter run -d chrome --web-port=8765` live for the user to check visually.
+11. The test caught two real bugs before they shipped, both fixed: (a) the region map's `ProvinceGeometry` was projected against a hardcoded `Size(390, 560)` but `CustomPaint` was laid out by an `AspectRatio`+scrollable parent at whatever size it actually got, so shapes would have rendered shrunk into a corner — fixed by wrapping the map in `LayoutBuilder` and projecting geometry against the real measured size, cached per-size in state; (b) the test's own tap-target logic used a province's bounding-box center as the tap point, which for an archipelago (Tierra del Fuego) can land in open water between islands — fixed by tapping a solid interior province (Córdoba) instead.
+
+**Files changed:**
+- `client/` (new) — full Flutter project: `pubspec.yaml`, `lib/main.dart`, `lib/core/{theme,routing}.dart`, `lib/core/widgets/*.dart`, `lib/data/models/*.dart`, `lib/data/repositories/*.dart`, `lib/features/{garden,identify,plants,region}/*.dart`, `assets/data/ar-lowpoly.geojson`, `test/app_flow_test.dart`.
+- `docs/architecture.md` (edited) — added `provinces`/`region_species` data-model section.
+
+**Notes / caveats:**
+- Camera capture is a static placeholder (`SketchPlaceholder`) — real `image_picker`/`camera` wiring needs the backend (architecture.md Phase 2/3), explicitly out of scope for this UI-only pass.
+- Diary's search bar renders but doesn't filter yet.
+- `region_species` reference data only covers the 6 provinces the original mockup sampled (Misiones, Buenos Aires, Salta, Neuquén, Tierra del Fuego, Mendoza) plus a default fallback list; the other 18 fall back to that default — real per-province curation is unsolved by Pl@ntNet's API and remains a follow-up.
+- No backend exists yet; all 3 repositories are in-memory fakes seeded once at app start — nothing persists across a reload.
+
+## 2026-08-28 — Set up the Flutter/Android front-end toolchain
+
+**Prompt (paraphrased):** After planning the client build (see the entry below), asked to install everything needed to work on the front end — Flutter plus, after being asked, the full Android toolchain including Android Studio and an emulator.
+
+**Actions taken:**
+1. Cloned Flutter stable into `~/development/flutter` (`git clone -b stable https://github.com/flutter/flutter.git`) — no official Fedora package exists; added it to `PATH` via `~/.bashrc`. Ran `flutter config --enable-web`.
+2. Downloaded Android command-line tools (`commandlinetools-linux-13114758_latest.zip`) into `~/Android/Sdk/cmdline-tools/latest`; set `ANDROID_HOME` and tool paths in `~/.bashrc`; accepted all SDK licenses (`yes | sdkmanager --licenses`).
+3. Installed `platform-tools`, `platforms;android-35`, `platforms;android-36`, `build-tools;35.0.0`, `build-tools;28.0.3` (Flutter specifically wants SDK 36 + BuildTools 28.0.3), then `emulator` + `system-images;android-35;google_apis;x86_64`; created AVD `yvoty_pixel` (Pixel 6, Android 15) via `avdmanager`.
+4. Installed Android Studio 2026.1.3.8 via `flatpak install --user flathub com.google.AndroidStudio` (optional GUI, not required for the CLI workflow).
+5. Asked the user to run two commands requiring sudo themselves: `sudo dnf install -y chromium` (set `CHROME_EXECUTABLE=/usr/bin/chromium-browser` in `~/.bashrc` afterward) and `sudo usermod -aG kvm gaspi` (for hardware-accelerated emulation) — confirmed active after the user rebooted (`id gaspi` shows `kvm`, `/dev/kvm` read/write OK).
+6. Verified with `flutter doctor -v`: Flutter 3.47.2 stable, Android toolchain, Chrome, and connected targets all green (the only remaining warning, missing GTK3 dev libs for Linux-desktop builds, is irrelevant since the project only targets Android + Web).
+7. Updated the in-progress plan file (`/home/gaspi/.claude/plans/noble-snuggling-petal.md`) to check off each prerequisite as it completed.
+
+**Files changed:**
+- None in the repo — this was machine/environment setup only (`~/.bashrc`, `~/development/flutter`, `~/Android/Sdk`, flatpak).
+
+**Notes / caveats:**
+- Fedora 44 has no official Flutter package, hence the git-clone install rather than a package manager.
+- The `kvm` group change needed a full logout/login (the user rebooted) before it took effect — `groups` in an already-open shell stayed stale until then even though `id`/`/dev/kvm` access was already correct system-side.
+
 ## 2026-08-28 — Import Claude Design UI screen drafts into repo
 
 **Prompt (paraphrased):** Asked to pull the draft UI screens from Claude Design into the repository.

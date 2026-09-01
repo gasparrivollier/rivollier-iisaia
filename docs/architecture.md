@@ -78,6 +78,14 @@ yvoty/
 
 Rationale: `identifications`/`identification_images`/`identification_results` record *every* call (browsed or not) for quota-usage history and reproducibility; `plants` is deliberately a separate "user chose to keep this" layer so browsing results doesn't clutter the garden; `garden_items` stays minimal with a jsonb escape hatch so future animated-layout mechanics aren't blocked by schema decisions made now.
 
+### Region map addition (native species by province)
+
+Supports the "collection progress by province" screen (`client/lib/features/region/`, ported from `design/yvoty-ui/05-Region-Map.html`):
+
+- **`provinces`** — id, name, slug. Static reference data (Argentina's 24 provinces don't change); geometry itself ships as a bundled client asset (`ar-lowpoly.geojson`), not DB rows.
+- **`region_species`** — id, province_id (FK), scientific_name, common_name, is_native. Curated reference/seed data, same category as the Pl@ntNet species catalog dump (`docs/examples/plantnet-species.csv`). Populating this beyond a handful of sample provinces is a **follow-up data-curation task** — Pl@ntNet's API has no "native species by region" endpoint, so this needs another source (a regional flora reference, GBIF occurrence data, or manual curation).
+- Per-province **coverage** (`have`/`total` shown in the UI) is computed at query time by joining a user's `plants.scientific_name` against `region_species` for that province — no new junction table needed.
+
 ## Auth
 
 Simple email+password with FastAPI-issued JWT — no managed auth vendor (Auth0/Firebase/Supabase Auth), since that's extra integration surface a custom backend doesn't need. `passlib` (bcrypt) for hashing, `pyjwt`/`python-jose` for tokens, `POST /auth/register`, `POST /auth/login`, and a `get_current_user` FastAPI dependency guarding protected routes. No email verification / password reset / social login for v1 — explicit simplification, not an oversight.
