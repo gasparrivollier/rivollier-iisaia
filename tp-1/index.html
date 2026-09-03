@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reclamos Subte</title>
+  <link rel="icon" type="image/svg+xml" href="https://upload.wikimedia.org/wikipedia/commons/b/bf/Subte-logo.svg" />
+  <style>
+    :root {
+      --color-bg: #f4f5f7;
+      --color-surface: #ffffff;
+      --color-text: #1f2328;
+      --color-muted: #5b6472;
+      --color-border: #d0d5dd;
+      --color-primary: #0a6cff;
+      --color-primary-hover: #0857d1;
+      --color-error: #d92d20;
+      --radius: 8px;
+
+      /* Sampled from the SBASE logo (loaded live from Wikimedia Commons — see <img>/<link rel="icon"> above) — the real Subte/GCBA brand yellow */
+      --color-brand-yellow: #f6cd19;
+      --color-brand-black: #111111;
+
+      /* Buenos Aires Subte line colors, per official signage/wayfinding */
+      --line-a: #00a5d9;
+      --line-b: #ec1c24;
+      --line-c: #004a93;
+      --line-d: #00a651;
+      --line-e: #7b2d8e;
+      --line-h: #ffcc00;
+      --line-premetro: #f7941d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--color-bg);
+      color: var(--color-text);
+    }
+
+    h1,
+    h2 {
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--color-brand-black);
+    }
+
+    .site-header {
+      background: var(--color-surface);
+      border-bottom: 6px solid var(--color-brand-yellow);
+    }
+
+    .site-header__inner {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .site-header__logo {
+      width: 56px;
+      height: 56px;
+      flex-shrink: 0;
+    }
+
+    .site-header__eyebrow {
+      margin: 0 0 0.125rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+    }
+
+    .site-header__title {
+      margin: 0;
+      font-size: 1.5rem;
+    }
+
+    .page {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+
+    .page__intro {
+      color: var(--color-muted);
+      margin-top: 0;
+    }
+
+    form {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .field {
+      margin-bottom: 1.25rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .field label {
+      font-weight: 600;
+      margin-bottom: 0.375rem;
+    }
+
+    input,
+    select,
+    textarea {
+      font: inherit;
+      padding: 0.625rem 0.75rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-surface);
+      color: var(--color-text);
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 1px;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    #description {
+      transition: background-color 0.15s ease;
+    }
+
+    .field-group {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 1rem 1rem 0.25rem;
+      margin: 0 0 1.25rem;
+    }
+
+    .field-group legend {
+      font-weight: 600;
+      padding: 0 0.25rem;
+    }
+
+    .dead-link-note {
+      font-size: 0.875rem;
+      color: var(--color-muted);
+      margin: -0.5rem 0 1.25rem;
+    }
+
+    .dead-link {
+      color: var(--color-primary);
+    }
+
+    .field__label {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .line-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .line-picker--bubbles {
+      position: relative;
+      width: 100%;
+      height: 14rem;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+    }
+
+    .line-picker--bubbles .line-option {
+      position: absolute;
+      top: 0;
+      left: 0;
+      /* JS drives position every frame via transform; avoid fighting layout transitions. */
+      will-change: transform;
+    }
+
+    .line-option {
+      position: relative;
+      display: block;
+      cursor: pointer;
+    }
+
+    .line-option input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .line-sphere {
+      --line-color: var(--color-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.75rem;
+      height: 2.75rem;
+      border-radius: 50%;
+      background: var(--line-color);
+      color: #fff;
+      font-weight: 700;
+      font-size: 1.125rem;
+      border: 2px solid transparent;
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+    }
+
+    .line-option[data-line="A"] .line-sphere { --line-color: var(--line-a); }
+    .line-option[data-line="B"] .line-sphere { --line-color: var(--line-b); }
+    .line-option[data-line="C"] .line-sphere { --line-color: var(--line-c); }
+    .line-option[data-line="D"] .line-sphere { --line-color: var(--line-d); }
+    .line-option[data-line="E"] .line-sphere { --line-color: var(--line-e); }
+    .line-option[data-line="H"] .line-sphere {
+      --line-color: var(--line-h);
+      color: #1f2328;
+    }
+    .line-option[data-line="Premetro"] .line-sphere { --line-color: var(--line-premetro); }
+
+    .line-option input:checked + .line-sphere {
+      border-color: var(--color-text);
+      box-shadow: 0 0 0 3px rgba(31, 35, 40, 0.15);
+      transform: scale(1.08);
+    }
+
+    .line-option input:focus-visible + .line-sphere {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+
+    .field.has-error .line-sphere {
+      box-shadow: 0 0 0 2px var(--color-error);
+    }
+
+    .station-grid {
+      display: flex;
+      flex-direction: column;
+      max-height: 20rem;
+      overflow-y: auto;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+    }
+
+    .station-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.625rem 0.875rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .station-row:last-child {
+      border-bottom: none;
+    }
+
+    .station-row__name {
+      font-size: 0.9375rem;
+    }
+
+    .toggle-switch {
+      position: relative;
+      flex-shrink: 0;
+      display: inline-block;
+      cursor: pointer;
+    }
+
+    .toggle-switch input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .toggle-switch__track {
+      display: block;
+      width: 2.75rem;
+      height: 1.5rem;
+      border-radius: 999px;
+      background: var(--color-border);
+      position: relative;
+      transition: background-color 0.15s ease;
+    }
+
+    .toggle-switch__thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 1.25rem;
+      height: 1.25rem;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+      transition: transform 0.15s ease;
+    }
+
+    .toggle-switch input:checked + .toggle-switch__track {
+      background: var(--color-primary);
+    }
+
+    .toggle-switch input:checked + .toggle-switch__track .toggle-switch__thumb {
+      transform: translateX(1.25rem);
+    }
+
+    .toggle-switch input:focus-visible + .toggle-switch__track {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+
+    .toggle-switch input:disabled + .toggle-switch__track {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .toggle-switch:has(input:disabled) {
+      cursor: not-allowed;
+    }
+
+    .field.has-error .station-grid {
+      border-color: var(--color-error);
+    }
+
+    .datetime-picker {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      width: fit-content;
+    }
+
+    .datetime-picker__display {
+      display: flex;
+      align-items: center;
+      padding: 0.625rem 1rem;
+      font-variant-numeric: tabular-nums;
+      font-size: 1rem;
+      min-width: 12rem;
+    }
+
+    .datetime-picker__arrows {
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--color-border);
+    }
+
+    .datetime-picker__arrow {
+      flex: 1;
+      width: 2.5rem;
+      border: none;
+      background: var(--color-surface);
+      cursor: pointer;
+      font-size: 0.75rem;
+      line-height: 1;
+      color: var(--color-muted);
+    }
+
+    .datetime-picker__arrow:first-child {
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .datetime-picker__arrow:hover {
+      background: var(--color-bg);
+      color: var(--color-text);
+    }
+
+    .field.has-error .datetime-picker {
+      border-color: var(--color-error);
+    }
+
+    .phone-keypad {
+      width: fit-content;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      background: var(--color-surface);
+    }
+
+    .phone-keypad__display {
+      min-width: 14rem;
+      min-height: 1.25rem;
+      margin-bottom: 0.625rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: calc(var(--radius) - 2px);
+      background: var(--color-bg);
+      font-variant-numeric: tabular-nums;
+      font-size: 1rem;
+      word-break: break-all;
+    }
+
+    .phone-keypad__display--empty {
+      color: var(--color-muted);
+    }
+
+    .phone-keypad__grid {
+      display: grid;
+      grid-template-columns: repeat(3, 3.5rem);
+      gap: 0.5rem;
+    }
+
+    .phone-keypad__key {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 3.5rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-surface);
+      cursor: pointer;
+      color: var(--color-text);
+    }
+
+    .phone-keypad__digit {
+      font-weight: 700;
+      font-size: 1.0625rem;
+      line-height: 1.2;
+    }
+
+    .phone-keypad__letters {
+      font-size: 0.5625rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--color-muted);
+    }
+
+    .phone-keypad__key:hover {
+      background: var(--color-bg);
+    }
+
+    .phone-keypad__key--del {
+      font-size: 1.125rem;
+      color: var(--color-error);
+    }
+
+    .phone-keypad__key--spacer {
+      border-color: transparent;
+      background: transparent;
+      cursor: default;
+    }
+
+    .field.has-error .phone-keypad {
+      border-color: var(--color-error);
+    }
+
+    .claim-game {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      background: var(--color-surface);
+    }
+
+    .claim-game canvas {
+      display: block;
+      width: 100%;
+      max-width: 560px;
+      height: auto;
+      aspect-ratio: 560 / 260;
+      border-radius: calc(var(--radius) - 2px);
+      background: linear-gradient(180deg, #eaf3ff 0%, var(--color-bg) 100%);
+      touch-action: none;
+      cursor: grab;
+    }
+
+    .claim-game__controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 0.625rem;
+    }
+
+    .claim-game__hint {
+      font-size: 0.8125rem;
+      color: var(--color-muted);
+    }
+
+    .claim-game__reset {
+      flex-shrink: 0;
+      padding: 0.5rem 0.875rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--color-text);
+    }
+
+    .claim-game__reset:hover {
+      background: var(--color-border);
+    }
+
+    .field.has-error .claim-game {
+      border-color: var(--color-error);
+    }
+
+    .binary-phone {
+      width: fit-content;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 0.75rem;
+      background: var(--color-surface);
+    }
+
+    .binary-phone__display {
+      margin-bottom: 0.625rem;
+    }
+
+    .binary-phone__bits {
+      min-width: 14rem;
+      padding: 0.5rem 0.75rem;
+      border-radius: calc(var(--radius) - 2px);
+      background: var(--color-bg);
+      font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+      font-size: 0.9375rem;
+      letter-spacing: 0.05em;
+      word-break: break-all;
+    }
+
+    .binary-phone__bits--empty {
+      color: var(--color-muted);
+      font-family: inherit;
+      letter-spacing: normal;
+      font-size: 0.8125rem;
+    }
+
+    .binary-phone__result {
+      margin-top: 0.375rem;
+      font-size: 0.8125rem;
+      color: var(--color-muted);
+    }
+
+    .binary-phone__result strong {
+      color: var(--color-text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .binary-phone__keys {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .binary-phone__key {
+      flex: 1;
+      height: 3rem;
+      min-width: 3.5rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-surface);
+      color: var(--color-text);
+      font-weight: 700;
+      font-size: 1.125rem;
+      cursor: pointer;
+    }
+
+    .binary-phone__key:hover {
+      background: var(--color-bg);
+    }
+
+    .binary-phone__key--del {
+      flex: 0 0 3.5rem;
+      color: var(--color-error);
+      font-size: 1rem;
+    }
+
+    .field__error {
+      color: var(--color-error);
+      font-size: 0.875rem;
+      min-height: 1.125rem;
+      margin-top: 0.25rem;
+    }
+
+    .field.has-error input,
+    .field.has-error select,
+    .field.has-error textarea {
+      border-color: var(--color-error);
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--color-brand-black);
+      color: var(--color-brand-yellow);
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button[type="submit"]:hover {
+      background: #000;
+    }
+
+    .confirmation {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+      text-align: center;
+    }
+
+    .confirmation button {
+      margin-top: 1rem;
+      padding: 0.625rem 1rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-surface);
+      cursor: pointer;
+    }
+
+    .confirmation__summary {
+      margin: 1.25rem 0 0;
+      padding: 1rem 1.25rem;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+      text-align: left;
+    }
+
+    .confirmation__summary dt {
+      font-weight: 600;
+      font-size: 0.8125rem;
+      color: var(--color-muted);
+      margin-top: 0.75rem;
+    }
+
+    .confirmation__summary dt:first-child {
+      margin-top: 0;
+    }
+
+    .confirmation__summary dd {
+      margin: 0.125rem 0 0;
+      font-size: 0.9375rem;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-header__inner">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/b/bf/Subte-logo.svg" alt="Subte Buenos Aires Ciudad" class="site-header__logo" />
+      <div class="site-header__text">
+        <p class="site-header__eyebrow">Buenos Aires Ciudad</p>
+        <h1 class="site-header__title">Reclamos del Subte</h1>
+      </div>
+    </div>
+  </header>
+
+  <main class="page">
+    <p class="page__intro">Completá el formulario para reportar un problema en el servicio de subte de Buenos Aires.</p>
+
+    <form id="complaint-form" novalidate>
+      <div class="field" data-field="line">
+        <span class="field__label">Línea</span>
+        <div class="line-picker line-picker--bubbles" role="radiogroup" aria-label="Línea">
+          <label class="line-option" data-line="A">
+            <input type="radio" name="line" value="A" required />
+            <span class="line-sphere">A</span>
+          </label>
+          <label class="line-option" data-line="B">
+            <input type="radio" name="line" value="B" required />
+            <span class="line-sphere">B</span>
+          </label>
+          <label class="line-option" data-line="C">
+            <input type="radio" name="line" value="C" required />
+            <span class="line-sphere">C</span>
+          </label>
+          <label class="line-option" data-line="D">
+            <input type="radio" name="line" value="D" required />
+            <span class="line-sphere">D</span>
+          </label>
+          <label class="line-option" data-line="E">
+            <input type="radio" name="line" value="E" required />
+            <span class="line-sphere">E</span>
+          </label>
+          <label class="line-option" data-line="H">
+            <input type="radio" name="line" value="H" required />
+            <span class="line-sphere">H</span>
+          </label>
+          <label class="line-option" data-line="Premetro">
+            <input type="radio" name="line" value="Premetro" required />
+            <span class="line-sphere line-sphere--premetro">P</span>
+          </label>
+        </div>
+        <span class="field__error" data-error-for="line"></span>
+      </div>
+
+      <div class="field" data-field="station">
+        <span class="field__label">Estación</span>
+        <div id="station-grid" class="station-grid" role="group" aria-label="Estación"></div>
+        <span class="field__error" data-error-for="station"></span>
+      </div>
+
+      <div class="field" data-field="datetime">
+        <span class="field__label">Fecha y hora del incidente</span>
+        <div class="datetime-picker">
+          <div class="datetime-picker__display" id="datetime-display" aria-live="polite"></div>
+          <div class="datetime-picker__arrows">
+            <button type="button" id="datetime-up" class="datetime-picker__arrow" aria-label="Sumar un segundo">▲</button>
+            <button type="button" id="datetime-down" class="datetime-picker__arrow" aria-label="Restar un segundo">▼</button>
+          </div>
+        </div>
+        <input type="hidden" id="datetime" name="datetime" required />
+        <span class="field__error" data-error-for="datetime"></span>
+      </div>
+
+      <div class="field" data-field="type">
+        <span class="field__label">Tipo de reclamo</span>
+        <div class="claim-game">
+          <canvas
+            id="claim-game-canvas"
+            width="560"
+            height="260"
+            aria-label="Minijuego: arrastrá la pelota hacia atrás y soltá para arrojarla a la canasta del tipo de reclamo"
+          ></canvas>
+          <div class="claim-game__controls">
+            <span class="claim-game__hint" id="claim-game-hint"></span>
+            <button type="button" id="claim-game-reset" class="claim-game__reset">Reiniciar</button>
+          </div>
+        </div>
+        <input type="hidden" id="type" name="type" required />
+        <span class="field__error" data-error-for="type"></span>
+      </div>
+
+      <div class="field">
+        <label for="description">Descripción</label>
+        <textarea id="description" name="description" rows="5" required placeholder="Contanos qué pasó"></textarea>
+        <span class="field__error" data-error-for="description"></span>
+      </div>
+
+      <fieldset class="field-group">
+        <legend>Tus datos de contacto</legend>
+
+        <div class="field">
+          <label for="first-name">Nombre</label>
+          <select id="first-name" name="firstName" required></select>
+          <span class="field__error" data-error-for="firstName"></span>
+        </div>
+
+        <div class="field">
+          <label for="last-name">Apellido</label>
+          <select id="last-name" name="lastName" required></select>
+          <span class="field__error" data-error-for="lastName"></span>
+        </div>
+
+        <p class="dead-link-note">
+          ¿No está tu nombre o tu apellido? ¡Llená
+          <a href="#" class="dead-link" data-dead-link>este formulario</a>
+          para solicitar que lo agreguemos!
+        </p>
+
+        <div class="field" data-field="email">
+          <span class="field__label">Email</span>
+          <div class="phone-keypad">
+            <div class="phone-keypad__display" id="email-display" aria-live="polite"></div>
+            <div class="phone-keypad__grid">
+              <button type="button" class="phone-keypad__key" data-key="1"><span class="phone-keypad__digit">1</span><span class="phone-keypad__letters">. @ _ -</span></button>
+              <button type="button" class="phone-keypad__key" data-key="2"><span class="phone-keypad__digit">2</span><span class="phone-keypad__letters">ABC</span></button>
+              <button type="button" class="phone-keypad__key" data-key="3"><span class="phone-keypad__digit">3</span><span class="phone-keypad__letters">DEF</span></button>
+              <button type="button" class="phone-keypad__key" data-key="4"><span class="phone-keypad__digit">4</span><span class="phone-keypad__letters">GHI</span></button>
+              <button type="button" class="phone-keypad__key" data-key="5"><span class="phone-keypad__digit">5</span><span class="phone-keypad__letters">JKL</span></button>
+              <button type="button" class="phone-keypad__key" data-key="6"><span class="phone-keypad__digit">6</span><span class="phone-keypad__letters">MNO</span></button>
+              <button type="button" class="phone-keypad__key" data-key="7"><span class="phone-keypad__digit">7</span><span class="phone-keypad__letters">PQRS</span></button>
+              <button type="button" class="phone-keypad__key" data-key="8"><span class="phone-keypad__digit">8</span><span class="phone-keypad__letters">TUV</span></button>
+              <button type="button" class="phone-keypad__key" data-key="9"><span class="phone-keypad__digit">9</span><span class="phone-keypad__letters">WXYZ</span></button>
+              <button type="button" class="phone-keypad__key phone-keypad__key--del" data-action="delete" aria-label="Borrar">⌫</button>
+              <button type="button" class="phone-keypad__key" data-key="0"><span class="phone-keypad__digit">0</span><span class="phone-keypad__letters">espacio</span></button>
+              <span class="phone-keypad__key phone-keypad__key--spacer" aria-hidden="true"></span>
+            </div>
+          </div>
+          <input type="hidden" id="email" name="email" required />
+          <span class="field__error" data-error-for="email"></span>
+        </div>
+
+        <div class="field">
+          <span class="field__label">Teléfono (opcional)</span>
+          <div class="binary-phone">
+            <div class="binary-phone__display">
+              <div class="binary-phone__bits" id="binary-phone-bits"></div>
+              <div class="binary-phone__result" id="binary-phone-result"></div>
+            </div>
+            <div class="binary-phone__keys">
+              <button type="button" class="binary-phone__key" data-bit="0">0</button>
+              <button type="button" class="binary-phone__key" data-bit="1">1</button>
+              <button type="button" class="binary-phone__key binary-phone__key--del" data-action="delete" aria-label="Borrar último bit">⌫</button>
+            </div>
+          </div>
+          <input type="hidden" id="phone" name="phone" />
+          <span class="field__error" data-error-for="phone"></span>
+        </div>
+      </fieldset>
+
+      <button type="submit">Enviar reclamo</button>
+    </form>
+
+    <div id="confirmation" class="confirmation" hidden role="status">
+      <h2>¡Reclamo enviado!</h2>
+      <p>Tu número de ticket es <strong id="ticket-number"></strong>.</p>
+      <dl class="confirmation__summary" id="confirmation-summary"></dl>
+      <button type="button" id="new-complaint">Cargar otro reclamo</button>
+    </div>
+  </main>
+
+  <script>
+    const form = document.getElementById("complaint-form");
+    const confirmation = document.getElementById("confirmation");
+    const ticketNumberEl = document.getElementById("ticket-number");
+    const confirmationSummary = document.getElementById("confirmation-summary");
+    const newComplaintBtn = document.getElementById("new-complaint");
+    const stationGrid = document.getElementById("station-grid");
+    const datetimeDisplay = document.getElementById("datetime-display");
+    const datetimeHidden = document.getElementById("datetime");
+    const datetimeUpBtn = document.getElementById("datetime-up");
+    const datetimeDownBtn = document.getElementById("datetime-down");
+    const firstNameSelect = document.getElementById("first-name");
+    const lastNameSelect = document.getElementById("last-name");
+    const descriptionField = document.getElementById("description");
+    const emailKeypad = document.querySelector(".phone-keypad");
+    const emailDisplay = document.getElementById("email-display");
+    const emailHidden = document.getElementById("email");
+    const typeGameCanvas = document.getElementById("claim-game-canvas");
+    const typeGameCtx = typeGameCanvas.getContext("2d");
+    const typeHidden = document.getElementById("type");
+    const typeHint = document.getElementById("claim-game-hint");
+    const typeResetBtn = document.getElementById("claim-game-reset");
+    const binaryPhoneKeys = document.querySelector(".binary-phone__keys");
+    const binaryPhoneBits = document.getElementById("binary-phone-bits");
+    const binaryPhoneResult = document.getElementById("binary-phone-result");
+    const phoneHidden = document.getElementById("phone");
+
+    const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Real Buenos Aires Subte stations, by line. Intentionally rendered as a single
+    // grid shuffled across all lines (not grouped/sorted by line) — see tp-1/CLAUDE.md
+    // "Anti-patterns" for why.
+    const STATIONS_BY_LINE = {
+      A: ["Plaza de Mayo", "Perú", "Piedras", "Lima", "Sáenz Peña", "Congreso", "Pasco", "Alberti", "Plaza Miserere", "Loria", "Castro Barros", "Río de Janeiro", "Acoyte", "Puan", "Primera Junta", "Carabobo", "San Pedrito", "San José de Flores"],
+      B: ["Leandro N. Alem", "Florida", "Carlos Pellegrini", "Uruguay", "Callao", "Pasteur", "Pueyrredón", "Carlos Gardel", "Medrano", "Ángel Gallardo", "Malabia", "Dorrego", "Federico Lacroze", "Tronador", "Los Incas", "Echeverría", "Juan Manuel de Rosas"],
+      C: ["Retiro", "San Martín", "Lavalle", "Diagonal Norte", "Avenida de Mayo", "Moreno", "Independencia", "San Juan", "Constitución"],
+      D: ["Catedral", "Tribunales - Teatro Colón", "Callao", "Facultad de Medicina", "Pueyrredón", "Agüero", "Bulnes", "Scalabrini Ortiz", "Plaza Italia", "Palermo", "Ministro Carranza", "Olleros", "José Hernández", "Juramento", "Congreso de Tucumán"],
+      E: ["Bolívar", "Belgrano", "Pichincha", "Entre Ríos", "San José", "Boedo", "Av. La Plata", "José María Moreno", "Emilio Mitre", "Medalla Milagrosa", "Varela", "Plaza de los Virreyes"],
+      H: ["Facultad de Derecho", "Las Heras", "Santa Fe", "Córdoba", "Corrientes", "Once", "Venezuela", "Humberto I", "Inclán", "Caseros", "Parque Patricios", "Hospitales"],
+    };
+
+    function shuffle(array) {
+      const result = [...array];
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      return result;
+    }
+
+    function renderStationList() {
+      const allStations = Object.values(STATIONS_BY_LINE).flat();
+      const shuffled = shuffle(allStations);
+
+      stationGrid.innerHTML = shuffled
+        .map(
+          (station) => `
+            <div class="station-row">
+              <span class="station-row__name">${station}</span>
+              <label class="toggle-switch">
+                <input type="checkbox" name="station" value="${station}" />
+                <span class="toggle-switch__track">
+                  <span class="toggle-switch__thumb"></span>
+                </span>
+              </label>
+            </div>
+          `
+        )
+        .join("");
+    }
+
+    // Only one station toggle may be on at a time: checking one disables every
+    // other toggle until it's switched back off. See tp-1/CLAUDE.md "Anti-patterns".
+    function handleStationToggle(event) {
+      if (event.target.name !== "station") return;
+
+      const toggles = stationGrid.querySelectorAll('input[name="station"]');
+      const isChecked = event.target.checked;
+
+      toggles.forEach((toggle) => {
+        toggle.disabled = isChecked && toggle !== event.target;
+      });
+
+      validateStationPicker();
+    }
+
+    // The incident datetime defaults to the Revolución de Mayo (1810-05-25) and can
+    // only move one second at a time via the up/down arrows. See tp-1/CLAUDE.md
+    // "Anti-patterns".
+    const DEFAULT_INCIDENT_DATETIME = new Date(1810, 4, 25, 0, 0, 0);
+    let incidentDateTime = new Date(DEFAULT_INCIDENT_DATETIME);
+
+    function pad(number) {
+      return String(number).padStart(2, "0");
+    }
+
+    function formatDateTime(date) {
+      const day = pad(date.getDate());
+      const month = pad(date.getMonth() + 1);
+      const year = date.getFullYear();
+      const hours = pad(date.getHours());
+      const minutes = pad(date.getMinutes());
+      const seconds = pad(date.getSeconds());
+      return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+    }
+
+    function renderDateTime() {
+      datetimeDisplay.textContent = formatDateTime(incidentDateTime);
+      datetimeHidden.value = incidentDateTime.toISOString();
+    }
+
+    function adjustDateTime(deltaSeconds) {
+      incidentDateTime = new Date(incidentDateTime.getTime() + deltaSeconds * 1000);
+      renderDateTime();
+      validateDateTimePicker();
+    }
+
+    // Nombre/Apellido are dropdowns of 500 procedurally-generated random names each —
+    // the odds of the reporter's actual name appearing are effectively zero. See
+    // tp-1/CLAUDE.md "Anti-patterns".
+    const FIRST_NAME_PREFIXES = ["Al", "An", "Ar", "Be", "Bri", "Cam", "Car", "Cla", "Da", "Die", "El", "Fa", "Fer", "Gab", "Gon", "Gui", "Hor", "Ig", "Iva", "Jav", "Jo", "Jul", "Ka", "Leo", "Lu", "Mar", "Mat", "Nat", "Nic", "Os", "Pa", "Pau", "Ra", "Ri", "Ro", "San", "Se", "Sof", "Ter", "Val", "Vic", "Wal", "Xi", "Yo", "Za"];
+    const FIRST_NAME_SUFFIXES = ["a", "ana", "andro", "berto", "cia", "co", "der", "ela", "elia", "ella", "enzo", "eta", "iana", "ica", "iel", "ina", "io", "ita", "na", "nardo", "olina", "on", "or", "ora", "os", "son", "ta", "ulo", "us", "yer"];
+    const LAST_NAME_PREFIXES = ["Alv", "And", "Ben", "Cast", "Cor", "Del", "Diaz", "Esp", "Fern", "Garc", "Gonz", "Guti", "Herr", "Ibarr", "Jimen", "Lop", "Mart", "Men", "Mor", "Nuñ", "Ortiz", "Perez", "Quir", "Ramir", "Rodr", "Ruiz", "Sanch", "Torr", "Vasq", "Vel"];
+    const LAST_NAME_SUFFIXES = ["ez", "az", "iz", "oz", "o", "a", "ero", "illo", "ano", "in", "on", "al", "ar", "ol", "un", "es", "as", "ico", "ito", "ulo"];
+
+    function generateWords(prefixes, suffixes, count) {
+      const seen = new Set();
+      while (seen.size < count) {
+        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+        const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+        seen.add(prefix + suffix);
+      }
+      return [...seen];
+    }
+
+    function renderNameDropdown(selectEl, prefixes, suffixes, placeholder) {
+      const words = shuffle(generateWords(prefixes, suffixes, 500));
+      selectEl.innerHTML =
+        `<option value="" disabled selected>${placeholder}</option>` +
+        words.map((word) => `<option value="${word}">${word}</option>`).join("");
+    }
+
+    // The description background darkens as you type, ramping toward the exact
+    // color of --color-text (#1f2328 = hsl(213, 13%, 14%)) by roughly the 10th
+    // character, so the typed text is truly camouflaged, not just dark. See
+    // tp-1/CLAUDE.md "Anti-patterns".
+    const DESCRIPTION_TEXT_HUE = 213;
+    const DESCRIPTION_TEXT_SATURATION = 13;
+    const DESCRIPTION_MIN_LIGHTNESS = 14; // matches --color-text's own lightness
+    const DESCRIPTION_START_LIGHTNESS = 96;
+    const DESCRIPTION_DARKEN_PER_CHAR = (DESCRIPTION_START_LIGHTNESS - DESCRIPTION_MIN_LIGHTNESS) / 10;
+
+    function updateDescriptionDarkness(event) {
+      const length = event.target.value.length;
+      const lightness = DESCRIPTION_START_LIGHTNESS - length * DESCRIPTION_DARKEN_PER_CHAR;
+
+      event.target.style.backgroundColor =
+        lightness <= DESCRIPTION_MIN_LIGHTNESS
+          ? "var(--color-text)"
+          : `hsl(${DESCRIPTION_TEXT_HUE}, ${DESCRIPTION_TEXT_SATURATION}%, ${lightness}%)`;
+    }
+
+    // Line options render as bubbles that bounce randomly inside `.line-picker--bubbles`
+    // instead of sitting still, so picking a line means clicking a moving target. See
+    // tp-1/CLAUDE.md "Anti-patterns".
+    const linePicker = document.querySelector(".line-picker--bubbles");
+    const BUBBLE_SIZE = 44; // px, matches .line-sphere width/height
+    const BUBBLE_SPEED_MIN = 0.2; // px/ms
+    const BUBBLE_SPEED_MAX = 0.22; // px/ms
+
+    function initLineBubbles() {
+      const bubbleEls = [...linePicker.querySelectorAll(".line-option")];
+      const bounds = linePicker.getBoundingClientRect();
+
+      const bubbles = bubbleEls.map((el) => {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = BUBBLE_SPEED_MIN + Math.random() * (BUBBLE_SPEED_MAX - BUBBLE_SPEED_MIN);
+        return {
+          el,
+          x: Math.random() * Math.max(bounds.width - BUBBLE_SIZE, 0),
+          y: Math.random() * Math.max(bounds.height - BUBBLE_SIZE, 0),
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+        };
+      });
+
+      let lastTime = null;
+
+      function step(time) {
+        if (lastTime === null) lastTime = time;
+        const dt = time - lastTime;
+        lastTime = time;
+
+        const maxX = linePicker.clientWidth - BUBBLE_SIZE;
+        const maxY = linePicker.clientHeight - BUBBLE_SIZE;
+
+        bubbles.forEach((bubble) => {
+          bubble.x += bubble.vx * dt;
+          bubble.y += bubble.vy * dt;
+
+          if (bubble.x < 0) {
+            bubble.x = 0;
+            bubble.vx = Math.abs(bubble.vx);
+          } else if (bubble.x > maxX) {
+            bubble.x = maxX;
+            bubble.vx = -Math.abs(bubble.vx);
+          }
+
+          if (bubble.y < 0) {
+            bubble.y = 0;
+            bubble.vy = Math.abs(bubble.vy);
+          } else if (bubble.y > maxY) {
+            bubble.y = maxY;
+            bubble.vy = -Math.abs(bubble.vy);
+          }
+
+          bubble.el.style.transform = `translate(${bubble.x}px, ${bubble.y}px)`;
+        });
+
+        requestAnimationFrame(step);
+      }
+
+      requestAnimationFrame(step);
+    }
+
+    // Email is typed via an old feature-phone-style multi-tap keypad instead of a text
+    // input: tapping a key cycles through its letters (2=abc, 3=def, ...), tapping the
+    // same key again within a short window advances the cycle, and any other action
+    // commits the character. See tp-1/CLAUDE.md "Anti-patterns".
+    const KEY_CHARS = {
+      1: [".", "@", "_", "-"],
+      2: ["a", "b", "c"],
+      3: ["d", "e", "f"],
+      4: ["g", "h", "i"],
+      5: ["j", "k", "l"],
+      6: ["m", "n", "o"],
+      7: ["p", "q", "r", "s"],
+      8: ["t", "u", "v"],
+      9: ["w", "x", "y", "z"],
+      0: [" "],
+    };
+    const KEYPAD_TAP_TIMEOUT_MS = 800;
+
+    let emailValue = "";
+    let activeKeypadKey = null;
+    let activeKeypadTapIndex = 0;
+    let keypadTapTimer = null;
+
+    function keypadCharsFor(key) {
+      return [...KEY_CHARS[key], String(key)];
+    }
+
+    function commitKeypadTap() {
+      activeKeypadKey = null;
+      activeKeypadTapIndex = 0;
+    }
+
+    function renderEmailKeypad() {
+      emailDisplay.textContent = emailValue || "Ingresá tu email con el teclado";
+      emailDisplay.classList.toggle("phone-keypad__display--empty", !emailValue);
+      emailHidden.value = emailValue;
+    }
+
+    function pressKeypadKey(key) {
+      const chars = keypadCharsFor(key);
+      clearTimeout(keypadTapTimer);
+
+      if (activeKeypadKey === key) {
+        activeKeypadTapIndex = (activeKeypadTapIndex + 1) % chars.length;
+        emailValue = emailValue.slice(0, -1) + chars[activeKeypadTapIndex];
+      } else {
+        activeKeypadKey = key;
+        activeKeypadTapIndex = 0;
+        emailValue += chars[0];
+      }
+
+      keypadTapTimer = setTimeout(commitKeypadTap, KEYPAD_TAP_TIMEOUT_MS);
+      renderEmailKeypad();
+      validateEmailKeypad();
+    }
+
+    function deleteKeypadChar() {
+      clearTimeout(keypadTapTimer);
+      commitKeypadTap();
+      emailValue = emailValue.slice(0, -1);
+      renderEmailKeypad();
+      validateEmailKeypad();
+    }
+
+    function resetEmailKeypad() {
+      clearTimeout(keypadTapTimer);
+      commitKeypadTap();
+      emailValue = "";
+      renderEmailKeypad();
+    }
+
+    emailKeypad.addEventListener("click", (event) => {
+      const keyButton = event.target.closest("[data-key]");
+      const deleteButton = event.target.closest('[data-action="delete"]');
+
+      if (keyButton) {
+        pressKeypadKey(keyButton.dataset.key);
+      } else if (deleteButton) {
+        deleteKeypadChar();
+      }
+    });
+
+    function validateEmailKeypad() {
+      const errorEl = form.querySelector('[data-error-for="email"]');
+      const wrapperEl = form.querySelector('[data-field="email"]');
+      let message = "";
+
+      if (!emailValue) {
+        message = "Este campo es obligatorio.";
+      } else if (!EMAIL_PATTERN.test(emailValue)) {
+        message = "Ingresá un email válido.";
+      }
+
+      errorEl.textContent = message;
+      wrapperEl.classList.toggle("has-error", Boolean(message));
+      return !message;
+    }
+
+    // Complaint type is picked by playing a slingshot mini-game: drag the ball back
+    // from its launch point and release to throw it into one of six baskets (one per
+    // complaint type). A miss or a catch both end the throw — a "Reiniciar" button is
+    // required to reset the ball and try again, even to change an already-successful
+    // pick. See tp-1/CLAUDE.md "Anti-patterns".
+    const CLAIM_TYPES = [
+      { value: "demora", label: "Demora" },
+      { value: "limpieza", label: "Limpieza" },
+      { value: "seguridad", label: "Seguridad" },
+      { value: "accesibilidad", label: "Accesib." },
+      { value: "personal", label: "Personal" },
+      { value: "otro", label: "Otro" },
+    ];
+
+    const GAME_WIDTH = 560;
+    const GAME_HEIGHT = 260;
+    const FLOOR_Y = GAME_HEIGHT - 20;
+    const BASKET_RIM_Y = GAME_HEIGHT - 60;
+    const BASKET_AREA_START_X = 110;
+    const BASKET_AREA_END_X = GAME_WIDTH - 10;
+    const BASKET_GAP = 8;
+    const LAUNCH_X = 40;
+    const LAUNCH_Y = FLOOR_Y - 12;
+    const BALL_RADIUS = 11;
+    const GRAVITY = 0.35;
+    const THROW_POWER_SCALE = 0.12;
+    const MAX_DRAG_DISTANCE = 130;
+    const MIN_DRAG_DISTANCE = 10;
+
+    const claimBaskets = CLAIM_TYPES.map((type, index) => {
+      const spacing = (BASKET_AREA_END_X - BASKET_AREA_START_X) / CLAIM_TYPES.length;
+      const x1 = BASKET_AREA_START_X + index * spacing + BASKET_GAP / 2;
+      const x2 = x1 + spacing - BASKET_GAP;
+      return { ...type, x1, x2, centerX: (x1 + x2) / 2 };
+    });
+
+    let claimBall = null;
+    let claimDragging = false;
+    let claimDragCurrent = null;
+    let claimSelectedBasket = null;
+
+    function resetClaimBall() {
+      claimBall = { x: LAUNCH_X, y: LAUNCH_Y, vx: 0, vy: 0, launched: false, resolved: false, crossedRim: false };
+    }
+
+    function claimPointDistance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function claimCanvasPointFromEvent(event) {
+      const rect = typeGameCanvas.getBoundingClientRect();
+      const scaleX = GAME_WIDTH / rect.width;
+      const scaleY = GAME_HEIGHT / rect.height;
+      return {
+        x: (event.clientX - rect.left) * scaleX,
+        y: (event.clientY - rect.top) * scaleY,
+      };
+    }
+
+    function findClaimBasketAt(x) {
+      return claimBaskets.find((basket) => x >= basket.x1 && x <= basket.x2) || null;
+    }
+
+    function validateTypeGame() {
+      const errorEl = form.querySelector('[data-error-for="type"]');
+      const wrapperEl = form.querySelector('[data-field="type"]');
+      const isValid = Boolean(typeHidden.value);
+
+      errorEl.textContent = isValid ? "" : "Encestá la pelota en un tipo de reclamo.";
+      wrapperEl.classList.toggle("has-error", !isValid);
+      return isValid;
+    }
+
+    function resolveClaimCatch(basket) {
+      claimBall.resolved = true;
+      claimBall.vx = 0;
+      claimBall.vy = 0;
+      claimBall.x = basket.centerX;
+      claimBall.y = FLOOR_Y - BALL_RADIUS;
+      claimSelectedBasket = basket;
+      typeHidden.value = basket.value;
+      typeHint.textContent = `¡Encestaste en "${basket.label}"! Presioná Reiniciar para elegir otro tipo.`;
+      validateTypeGame();
+    }
+
+    function resolveClaimMiss() {
+      claimBall.resolved = true;
+      claimBall.vx = 0;
+      claimBall.vy = 0;
+      typeHint.textContent = "Fallaste. Presioná Reiniciar para intentar de nuevo.";
+      validateTypeGame();
+    }
+
+    function updateClaimBallPhysics() {
+      if (!claimBall.launched || claimBall.resolved) return;
+
+      claimBall.vy += GRAVITY;
+      claimBall.x += claimBall.vx;
+      claimBall.y += claimBall.vy;
+
+      if (claimBall.x < BALL_RADIUS) {
+        claimBall.x = BALL_RADIUS;
+        claimBall.vx = 0;
+      } else if (claimBall.x > GAME_WIDTH - BALL_RADIUS) {
+        claimBall.x = GAME_WIDTH - BALL_RADIUS;
+        claimBall.vx = 0;
+      }
+
+      if (!claimBall.crossedRim && claimBall.vy > 0 && claimBall.y + BALL_RADIUS >= BASKET_RIM_Y) {
+        claimBall.crossedRim = true;
+        const basket = findClaimBasketAt(claimBall.x);
+        if (basket) {
+          resolveClaimCatch(basket);
+        }
+      }
+
+      if (!claimBall.resolved && claimBall.y + BALL_RADIUS >= FLOOR_Y) {
+        claimBall.y = FLOOR_Y - BALL_RADIUS;
+        resolveClaimMiss();
+      }
+    }
+
+    function drawClaimScene() {
+      const ctx = typeGameCtx;
+      ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+      ctx.fillStyle = "#d0d5dd";
+      ctx.fillRect(0, FLOOR_Y, GAME_WIDTH, GAME_HEIGHT - FLOOR_Y);
+
+      claimBaskets.forEach((basket) => {
+        const isSelected = claimSelectedBasket === basket;
+        ctx.beginPath();
+        ctx.moveTo(basket.x1, BASKET_RIM_Y);
+        ctx.lineTo(basket.x1, FLOOR_Y);
+        ctx.lineTo(basket.x2, FLOOR_Y);
+        ctx.lineTo(basket.x2, BASKET_RIM_Y);
+        ctx.strokeStyle = isSelected ? "#f6cd19" : "#5b6472";
+        ctx.lineWidth = isSelected ? 4 : 3;
+        ctx.stroke();
+        ctx.fillStyle = isSelected ? "rgba(246, 205, 25, 0.25)" : "rgba(91, 100, 114, 0.08)";
+        ctx.fill();
+
+        ctx.fillStyle = isSelected ? "#111111" : "#5b6472";
+        ctx.font = "bold 11px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(basket.label, basket.centerX, BASKET_RIM_Y - 8);
+      });
+
+      ctx.fillStyle = "#5b6472";
+      ctx.fillRect(LAUNCH_X - 14, FLOOR_Y, 28, GAME_HEIGHT - FLOOR_Y);
+
+      if (claimDragging && claimDragCurrent) {
+        ctx.beginPath();
+        ctx.moveTo(LAUNCH_X, LAUNCH_Y);
+        ctx.lineTo(claimDragCurrent.x, claimDragCurrent.y);
+        ctx.strokeStyle = "#0a6cff";
+        ctx.setLineDash([6, 4]);
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        const throwX = LAUNCH_X - (claimDragCurrent.x - LAUNCH_X);
+        const throwY = LAUNCH_Y - (claimDragCurrent.y - LAUNCH_Y);
+        ctx.beginPath();
+        ctx.moveTo(LAUNCH_X, LAUNCH_Y);
+        ctx.lineTo(throwX, throwY);
+        ctx.strokeStyle = "#d92d20";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      ctx.beginPath();
+      ctx.arc(claimBall.x, claimBall.y, BALL_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff6b35";
+      ctx.fill();
+      ctx.strokeStyle = "#c1440e";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+
+    function claimGameLoop() {
+      updateClaimBallPhysics();
+      drawClaimScene();
+      requestAnimationFrame(claimGameLoop);
+    }
+
+    function launchClaimBall(dragVector) {
+      const length = Math.min(claimPointDistance({ x: 0, y: 0 }, dragVector), MAX_DRAG_DISTANCE);
+      const angle = Math.atan2(dragVector.y, dragVector.x);
+      const clamped = { x: Math.cos(angle) * length, y: Math.sin(angle) * length };
+
+      claimBall.vx = -clamped.x * THROW_POWER_SCALE;
+      claimBall.vy = -clamped.y * THROW_POWER_SCALE;
+      claimBall.launched = true;
+    }
+
+    typeGameCanvas.addEventListener("pointerdown", (event) => {
+      if (claimBall.launched) return;
+      const point = claimCanvasPointFromEvent(event);
+      if (claimPointDistance(point, { x: LAUNCH_X, y: LAUNCH_Y }) > BALL_RADIUS + 20) return;
+      claimDragging = true;
+      claimDragCurrent = point;
+      typeGameCanvas.setPointerCapture(event.pointerId);
+    });
+
+    typeGameCanvas.addEventListener("pointermove", (event) => {
+      if (!claimDragging) return;
+      claimDragCurrent = claimCanvasPointFromEvent(event);
+    });
+
+    typeGameCanvas.addEventListener("pointerup", (event) => {
+      if (!claimDragging) return;
+      claimDragging = false;
+      const dragVector = { x: claimDragCurrent.x - LAUNCH_X, y: claimDragCurrent.y - LAUNCH_Y };
+      claimDragCurrent = null;
+      if (claimPointDistance(dragVector, { x: 0, y: 0 }) < MIN_DRAG_DISTANCE) return;
+      launchClaimBall(dragVector);
+    });
+
+    function resetClaimGame() {
+      resetClaimBall();
+      claimSelectedBasket = null;
+      typeHidden.value = "";
+      typeHint.textContent = "Arrastrá la pelota hacia atrás (lejos de las canastas) y soltá para arrojarla.";
+      const errorEl = form.querySelector('[data-error-for="type"]');
+      const wrapperEl = form.querySelector('[data-field="type"]');
+      errorEl.textContent = "";
+      wrapperEl.classList.remove("has-error");
+    }
+
+    typeResetBtn.addEventListener("click", resetClaimGame);
+
+    // Phone is entered as raw binary bits (0/1 buttons only) instead of digits: every
+    // 4 bits is decoded as a BCD nibble into one decimal digit, and the decoded number
+    // is shown live as "Resultado". A single invalid nibble (1010-1111, which isn't a
+    // valid BCD digit) blanks the whole decoded result, not just that digit. See
+    // tp-1/CLAUDE.md "Anti-patterns".
+    let phoneBits = [];
+
+    function decodeBcdNibble(nibble) {
+      const value = parseInt(nibble, 2);
+      return value <= 9 ? String(value) : "?";
+    }
+
+    function renderBinaryPhone() {
+      const bitsString = phoneBits.join("");
+      binaryPhoneBits.textContent = bitsString
+        ? bitsString.match(/.{1,4}/g).join(" ")
+        : "Tocá 0 / 1 para ingresar el teléfono en binario";
+      binaryPhoneBits.classList.toggle("binary-phone__bits--empty", !bitsString);
+
+      const fullNibbles = bitsString.match(/.{4}/g) || [];
+      const decoded = fullNibbles.map(decodeBcdNibble).join("");
+      binaryPhoneResult.innerHTML = decoded ? `Resultado: <strong>${decoded}</strong>` : "Resultado: —";
+
+      phoneHidden.value = decoded.includes("?") ? "" : decoded;
+    }
+
+    function pressPhoneBit(bit) {
+      phoneBits.push(bit);
+      renderBinaryPhone();
+    }
+
+    function deletePhoneBit() {
+      phoneBits.pop();
+      renderBinaryPhone();
+    }
+
+    function resetBinaryPhone() {
+      phoneBits = [];
+      renderBinaryPhone();
+    }
+
+    binaryPhoneKeys.addEventListener("click", (event) => {
+      const bitButton = event.target.closest("[data-bit]");
+      const deleteButton = event.target.closest('[data-action="delete"]');
+
+      if (bitButton) {
+        pressPhoneBit(bitButton.dataset.bit);
+      } else if (deleteButton) {
+        deletePhoneBit();
+      }
+    });
+
+    function validateField(field) {
+      const errorEl = form.querySelector(`[data-error-for="${field.name}"]`);
+      let message = "";
+
+      if (field.required && !field.value.trim()) {
+        message = "Este campo es obligatorio.";
+      } else if (field.type === "email" && field.value && !EMAIL_PATTERN.test(field.value)) {
+        message = "Ingresá un email válido.";
+      }
+
+      errorEl.textContent = message;
+      field.closest(".field").classList.toggle("has-error", Boolean(message));
+      return !message;
+    }
+
+    function validateLinePicker() {
+      const errorEl = form.querySelector('[data-error-for="line"]');
+      const wrapperEl = form.querySelector('[data-field="line"]');
+      const isChecked = form.elements.line.value !== "";
+
+      errorEl.textContent = isChecked ? "" : "Seleccioná una línea.";
+      wrapperEl.classList.toggle("has-error", !isChecked);
+      return isChecked;
+    }
+
+    function validateStationPicker() {
+      const errorEl = form.querySelector('[data-error-for="station"]');
+      const wrapperEl = form.querySelector('[data-field="station"]');
+      const isChecked = Boolean(stationGrid.querySelector('input[name="station"]:checked'));
+
+      errorEl.textContent = isChecked ? "" : "Seleccioná una estación.";
+      wrapperEl.classList.toggle("has-error", !isChecked);
+      return isChecked;
+    }
+
+    function validateDateTimePicker() {
+      const errorEl = form.querySelector('[data-error-for="datetime"]');
+      const wrapperEl = form.querySelector('[data-field="datetime"]');
+      const isFuture = incidentDateTime > new Date();
+
+      errorEl.textContent = isFuture ? "La fecha no puede ser futura." : "";
+      wrapperEl.classList.toggle("has-error", isFuture);
+      return !isFuture;
+    }
+
+    const TYPE_LABELS = {
+      demora: "Demora / frecuencia",
+      limpieza: "Limpieza",
+      seguridad: "Seguridad",
+      accesibilidad: "Accesibilidad",
+      personal: "Trato del personal",
+      otro: "Otro",
+    };
+
+    function buildConfirmationSummary() {
+      const stationInput = stationGrid.querySelector('input[name="station"]:checked');
+      const rows = [
+        ["Línea", form.elements.line.value],
+        ["Estación", stationInput ? stationInput.value : ""],
+        ["Fecha y hora del incidente", formatDateTime(incidentDateTime)],
+        ["Tipo de reclamo", TYPE_LABELS[typeHidden.value] || typeHidden.value],
+        ["Descripción", descriptionField.value],
+        ["Nombre", firstNameSelect.value],
+        ["Apellido", lastNameSelect.value],
+        ["Email", emailValue],
+        ["Teléfono", phoneHidden.value || "—"],
+      ];
+
+      confirmationSummary.innerHTML = "";
+      rows.forEach(([label, value]) => {
+        const dt = document.createElement("dt");
+        dt.textContent = label;
+        const dd = document.createElement("dd");
+        dd.textContent = value;
+        confirmationSummary.append(dt, dd);
+      });
+    }
+
+    function generateTicketNumber() {
+      const year = new Date().getFullYear();
+      const random = Math.floor(1000 + Math.random() * 9000);
+      return `SUBTE-${year}-${random}`;
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const fields = [...form.elements].filter(
+        (el) =>
+          el.name &&
+          el.name !== "line" &&
+          el.name !== "station" &&
+          el.name !== "datetime" &&
+          el.name !== "email" &&
+          el.name !== "type"
+      );
+      const isLineValid = validateLinePicker();
+      const isStationValid = validateStationPicker();
+      const isDateTimeValid = validateDateTimePicker();
+      const isEmailValid = validateEmailKeypad();
+      const isTypeValid = validateTypeGame();
+      const isValid = [
+        isLineValid,
+        isStationValid,
+        isDateTimeValid,
+        isEmailValid,
+        isTypeValid,
+        ...fields.map(validateField),
+      ].every(Boolean);
+
+      if (!isValid) {
+        return;
+      }
+
+      const ticketNumber = generateTicketNumber();
+      ticketNumberEl.textContent = ticketNumber;
+      buildConfirmationSummary();
+
+      form.hidden = true;
+      confirmation.hidden = false;
+    });
+
+    initLineBubbles();
+
+    renderEmailKeypad();
+
+    resetClaimGame();
+    requestAnimationFrame(claimGameLoop);
+
+    renderBinaryPhone();
+
+    renderStationList();
+    stationGrid.addEventListener("change", handleStationToggle);
+
+    renderDateTime();
+    datetimeUpBtn.addEventListener("click", () => adjustDateTime(1));
+    datetimeDownBtn.addEventListener("click", () => adjustDateTime(-1));
+
+    renderNameDropdown(firstNameSelect, FIRST_NAME_PREFIXES, FIRST_NAME_SUFFIXES, "Seleccioná un nombre");
+    renderNameDropdown(lastNameSelect, LAST_NAME_PREFIXES, LAST_NAME_SUFFIXES, "Seleccioná un apellido");
+
+    // Looks like a real link ("este formulario") but goes nowhere. See tp-1/CLAUDE.md
+    // "Anti-patterns".
+    document.querySelectorAll("[data-dead-link]").forEach((link) => {
+      link.addEventListener("click", (event) => event.preventDefault());
+    });
+
+    descriptionField.addEventListener("input", updateDescriptionDarkness);
+
+    form.querySelectorAll("input, select, textarea").forEach((field) => {
+      if (field.name === "line") {
+        field.addEventListener("change", validateLinePicker);
+      } else if (
+        field.name !== "station" &&
+        field.name !== "datetime" &&
+        field.name !== "email" &&
+        field.name !== "type" &&
+        field.name !== "phone"
+      ) {
+        field.addEventListener("blur", () => validateField(field));
+      }
+    });
+
+    newComplaintBtn.addEventListener("click", () => {
+      form.reset();
+      renderStationList();
+      incidentDateTime = new Date(DEFAULT_INCIDENT_DATETIME);
+      renderDateTime();
+      resetEmailKeypad();
+      resetClaimGame();
+      resetBinaryPhone();
+      renderNameDropdown(firstNameSelect, FIRST_NAME_PREFIXES, FIRST_NAME_SUFFIXES, "Seleccioná un nombre");
+      renderNameDropdown(lastNameSelect, LAST_NAME_PREFIXES, LAST_NAME_SUFFIXES, "Seleccioná un apellido");
+      descriptionField.style.backgroundColor = "";
+      form.querySelectorAll(".field__error").forEach((el) => (el.textContent = ""));
+      form.querySelectorAll(".has-error").forEach((el) => el.classList.remove("has-error"));
+      confirmation.hidden = true;
+      form.hidden = false;
+    });
+  </script>
+</body>
+</html>
