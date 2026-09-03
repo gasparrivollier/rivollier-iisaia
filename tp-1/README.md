@@ -1,29 +1,29 @@
-# TP-1 — Subte Complaint Form
+# TP-1 — Formulario de Reclamos del Subte
 
-A plain HTML/CSS/JS front-end for filing a complaint about Buenos Aires's Subte (subway) service.
+Un front-end en HTML/CSS/JS plano para presentar un reclamo sobre el servicio del Subte de Buenos Aires.
 
-## About this assignment
+## Sobre este trabajo práctico
 
-This TP is a UI/UX exercise: build a working form first, then (in a later pass) deliberately make it hard to use in order to study usability heuristics and anti-patterns. Right now the form is meant to be **correct and straightforward** — no intentional friction yet.
+Este TP es un ejercicio de UI/UX: primero construir un formulario funcional, y luego (en una etapa posterior) hacerlo deliberadamente difícil de usar para estudiar heurísticas de usabilidad y anti-patrones. Por ahora el formulario está pensado para ser **correcto y directo** — todavía sin fricción intencional.
 
 ## Stack
 
-- A single self-contained HTML file (markup, CSS in `<style>`, and vanilla JS in `<script>`). No framework, no build step, no backend.
-- Form submissions are simulated client-side (see `tp-1/CLAUDE.md` for details) since there is no server in this TP.
-- The Subte logo in the header is loaded live from Wikimedia Commons — the only network dependency the page has.
+- Un único archivo HTML autocontenido (markup, CSS en `<style>`, y JS vanilla en `<script>`). Sin framework, sin build step, sin backend.
+- Los envíos del formulario se simulan del lado del cliente (ver `tp-1/CLAUDE.md` para más detalles), ya que este TP no tiene servidor.
+- El logo del Subte en el encabezado se carga en vivo desde Wikimedia Commons — la única dependencia de red que tiene la página.
 
-## Running it
+## Cómo correrlo
 
-Open `index.html` directly in a browser (double-click it, or `file://` it), or serve the folder with any static file server, e.g.:
+Abrí `index.html` directamente en un navegador (doble clic, o vía `file://`), o serví la carpeta con cualquier servidor de archivos estático, por ejemplo:
 
 ```
 python3 -m http.server -d tp-1 8000
 ```
 
-Then visit `http://localhost:8000`. An internet connection is needed for the header logo to load.
+Después visitá `http://localhost:8000`. Se necesita conexión a internet para que cargue el logo del encabezado.
 
-## Structure
+## Estructura
 
-- `index.html` — the complaint form: markup, styling, and behavior all in one file. No other project files.
+- `index.html` — el formulario de reclamos: markup, estilos y comportamiento, todo en un solo archivo. No hay otros archivos del proyecto.
 
-See `tp-1/CLAUDE.md` for architecture notes and conventions specific to this TP.
+Ver `tp-1/CLAUDE.md` para notas de arquitectura y convenciones específicas de este TP.
