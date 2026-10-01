@@ -11,6 +11,6 @@ Este repositorio reúne los trabajos prácticos (TPs) de la materia. Además del
 ## Trabajos prácticos
 
 - [`tp-1`](tp-1/README.md) — Formulario de reclamos del Subte de Buenos Aires (HTML/CSS/JS single-file).
-- `tp-2` — pendiente.
-- `tp-final` — pendiente.
+- `tp-2` — 
+- `tp-final` — ignorar. Repo principal es: https://github.com/rmbriend/Briend-iisaia/tree/main/tp-final
 
