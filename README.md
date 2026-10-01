@@ -11,6 +11,6 @@ Este repositorio reúne los trabajos prácticos (TPs) de la materia. Además del
 ## Trabajos prácticos
 
 - [`tp-1`](tp-1/README.md) — Formulario de reclamos del Subte de Buenos Aires (HTML/CSS/JS single-file).
-- `tp-2` — 
+- [`tp-2`](tp-2/README.md) — Contrato OpenAPI de una API REST de identificación de plantas: identificaciones con sus resultados anidados (5 endpoints, 3 paths, sin implementación).
 - `tp-final` — ignorar. Repo principal es: https://github.com/rmbriend/Briend-iisaia/tree/main/tp-final
 
