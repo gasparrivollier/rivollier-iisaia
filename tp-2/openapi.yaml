@@ -1,0 +1,338 @@
+openapi: 3.0.3
+info:
+  title: API de identificación de plantas
+  version: 1.0.0
+  description: |
+    API para identificar plantas a partir de fotos.
+
+    ## Cómo funciona
+
+    1. El usuario sube de 1 a 5 fotos de una misma planta, indicando qué órgano
+       muestra cada una (hoja, flor, fruto, corteza, porte u otro).
+    2. El servidor envía las fotos a un servicio externo de reconocimiento de
+       plantas y guarda la respuesta como una **identificación**.
+    3. Cada identificación contiene una lista de **resultados**: las especies
+       candidatas, ordenadas de la más a la menos probable, cada una con un
+       puntaje de confianza entre 0 y 1.
+
+    ## Recursos
+
+    - **Identificación**: una consulta hecha por un usuario (sus fotos y el momento
+      en que se hizo). Pertenece al usuario que la creó y solo él puede verla.
+    - **Resultado**: una especie candidata de una identificación. No existe fuera
+      de su identificación: si se borra la identificación, se borran sus
+      resultados. Por eso los resultados se acceden por
+      `/identifications/{identificationId}/results`. Son de solo lectura, porque
+      los calcula el servicio externo y no el cliente.
+
+    ## Autenticación
+
+    Todos los endpoints requieren un token JWT en el header
+    `Authorization: Bearer <token>`.
+
+    ## Cuota
+
+    El servicio externo limita la cantidad de consultas por día, y una consulta
+    que falla también consume cuota. Por eso el servidor valida las fotos antes
+    de enviarlas y responde `429` con `Retry-After` cuando la cuota se agota.
+
+    Este documento es solo el contrato: no hay implementación.
+servers:
+  - url: https://api.example.com/v1
+security:
+  - bearerAuth: []
+tags:
+  - name: identifications
+    description: Consultas de identificación hechas por el usuario autenticado.
+  - name: results
+    description: Especies candidatas de una identificación (solo lectura).
+paths:
+  /identifications:
+    get:
+      tags: [identifications]
+      summary: Listar las identificaciones del usuario
+      description: |
+        Devuelve las identificaciones del usuario autenticado, de la más reciente
+        a la más antigua. Si el usuario no hizo ninguna, devuelve una lista vacía.
+        No incluye los resultados: para eso, `GET /identifications/{identificationId}/results`.
+      operationId: listIdentifications
+      parameters:
+        - name: limit
+          in: query
+          description: Cantidad máxima de identificaciones a devolver.
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          description: Cantidad de identificaciones a saltear (paginación).
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Lista de identificaciones.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Identification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [identifications]
+      summary: Crear una identificación a partir de fotos
+      description: |
+        Envía de 1 a 5 fotos de una misma planta, cada una con el órgano que
+        muestra. El servidor las valida, las manda al servicio externo de
+        reconocimiento y guarda la identificación junto con todos sus resultados.
+
+        Reglas de validación:
+        - Entre 1 y 5 fotos, en formato JPEG o PNG, de al menos 800×800 px.
+        - `organs` debe tener exactamente un valor por cada foto, en el mismo orden.
+
+        El cliente solo manda fotos y órganos. El `id`, la fecha y los resultados
+        los genera el servidor.
+      operationId: createIdentification
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/IdentificationInput'
+            encoding:
+              images:
+                contentType: image/jpeg, image/png
+      responses:
+        '201':
+          description: Identificación creada. Sus resultados se consultan en `/identifications/{id}/results`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identification'
+        '400':
+          description: Pedido malformado, por ejemplo `organs` con distinta cantidad de valores que `images`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "organs debe tener un valor por cada imagen (2 imágenes, 1 órgano)."
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Las fotos no cumplen los requisitos (formato no soportado, menos de 800×800 px o más de 5).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "La imagen 2 mide 600×400 px; el mínimo es 800×800."
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /identifications/{identificationId}:
+    parameters:
+      - $ref: '#/components/parameters/IdentificationId'
+    get:
+      tags: [identifications]
+      summary: Obtener una identificación
+      description: Devuelve los datos de una identificación del usuario, sin sus resultados.
+      operationId: getIdentification
+      responses:
+        '200':
+          description: La identificación.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identification'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [identifications]
+      summary: Borrar una identificación
+      description: |
+        Borra la identificación y todos sus resultados. Es irreversible. No
+        devuelve cuerpo, porque el recurso ya no existe.
+      operationId: deleteIdentification
+      responses:
+        '204':
+          description: Borrada.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /identifications/{identificationId}/results:
+    parameters:
+      - $ref: '#/components/parameters/IdentificationId'
+    get:
+      tags: [results]
+      summary: Listar las especies candidatas de una identificación
+      description: |
+        Devuelve las especies candidatas ordenadas por `rank` (1 es la más
+        probable). Si la identificación no existe responde `404`, no una lista
+        vacía: "no existe" y "existe pero sin resultados" son situaciones distintas.
+      operationId: listIdentificationResults
+      responses:
+        '200':
+          description: Resultados de la identificación, ordenados por `rank`.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IdentificationResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdentificationId:
+      name: identificationId
+      in: path
+      required: true
+      description: Identificador de la identificación.
+      schema: { type: integer, format: int64 }
+      example: 42
+  schemas:
+    IdentificationInput:
+      description: Lo que envía el cliente para crear una identificación.
+      type: object
+      required: [images, organs]
+      properties:
+        images:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items: { type: string, format: binary }
+          description: Fotos JPEG o PNG de la misma planta, de al menos 800×800 px.
+        organs:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            enum: [leaf, flower, fruit, bark, habit, other]
+          description: |
+            Qué muestra cada foto, en el mismo orden y cantidad que `images`:
+            `leaf` hoja, `flower` flor, `fruit` fruto, `bark` corteza,
+            `habit` planta entera, `other` otro.
+          example: [leaf, flower]
+    Identification:
+      description: Una consulta de identificación ya procesada.
+      type: object
+      required: [id, created_at, best_match]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 42
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          description: Momento en que se hizo la identificación.
+        best_match:
+          type: string
+          description: Nombre científico de la especie más probable (el resultado con `rank` 1).
+          example: Passiflora caerulea
+        service_version:
+          type: string
+          description: Versión del servicio de reconocimiento que respondió. Sirve para reproducir o auditar el resultado.
+          example: "2025-01-17 (7.3)"
+        remaining_requests:
+          type: integer
+          description: Consultas que le quedaban a la cuota diaria del servicio externo al hacer esta identificación.
+          example: 480
+    IdentificationResult:
+      description: Una especie candidata de una identificación.
+      type: object
+      required: [id, identification_id, rank, score, scientific_name]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+          example: 311
+        identification_id:
+          type: integer
+          format: int64
+          readOnly: true
+          description: Identificación a la que pertenece. Solo aparece en la respuesta; el cliente nunca lo envía.
+          example: 42
+        rank:
+          type: integer
+          minimum: 1
+          description: Posición en el ranking (1 es la más probable).
+          example: 1
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Confianza del reconocimiento, de 0 a 1.
+          example: 0.87
+        scientific_name:
+          type: string
+          example: Passiflora caerulea
+        genus:
+          type: string
+          description: Género.
+          example: Passiflora
+        family:
+          type: string
+          description: Familia.
+          example: Passifloraceae
+        common_names:
+          type: array
+          items: { type: string }
+          description: Nombres comunes conocidos.
+          example: [Pasionaria, Mburucuyá]
+        gbif_id:
+          type: string
+          description: Identificador de la especie en GBIF (base pública de biodiversidad).
+          example: "2873162"
+        powo_id:
+          type: string
+          description: Identificador de la especie en Plants of the World Online (Kew).
+          example: "urn:lsid:ipni.org:names:30001012-2"
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: Descripción legible del error.
+  responses:
+    Unauthorized:
+      description: Falta el token JWT o es inválido.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Token ausente o inválido.
+    NotFound:
+      description: La identificación no existe o no pertenece al usuario.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: No existe la identificación 99.
+    TooManyRequests:
+      description: Se agotó la cuota diaria del servicio de reconocimiento.
+      headers:
+        Retry-After:
+          description: Segundos hasta poder reintentar.
+          schema: { type: integer }
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            message: Cuota diaria agotada. Reintentá más tarde.
