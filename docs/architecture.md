@@ -41,7 +41,7 @@ FastAPI Backend  ── owns PLANTNET_API_KEY (server-only) ──►  Pl@ntNet 
 yvoty/
 ├── docs/                     # plantnet-api.md, architecture.md (this file)
 ├── backend/
-│   ├── pyproject.toml
+│   ├── pyproject.toml          # managed with uv; Python pinned to 3.12/3.13
 │   ├── alembic/               # DB migrations
 │   ├── app/
 │   │   ├── main.py            # FastAPI app factory
@@ -61,7 +61,7 @@ yvoty/
 │       ├── features/            # auth/, identify/, plants/, garden/
 │       ├── data/                 # API client, DTOs
 │       └── core/                  # theming, routing, shared widgets
-├── docker-compose.yml           # postgres + minio + backend, for local dev
+├── compose.yaml                 # postgres + minio + backend, for local dev (runtime-neutral: docker or podman compose)
 ├── .env.example / .env          # already exist
 ```
 
@@ -96,22 +96,63 @@ Simple email+password with FastAPI-issued JWT — no managed auth vendor (Auth0/
 
 ## Image storage
 
-**MinIO, self-hosted, in both dev and production.** It speaks the S3 API (via `boto3`/`aioboto3`, so `storage.py` only ever targets the S3 *protocol*, never a MinIO-specific SDK) — not DB blobs (bloats Postgres) and not local disk (breaks on any multi-instance or ephemeral-filesystem deployment). Local dev runs a MinIO container in `docker-compose.yml` alongside Postgres; production runs the same MinIO image on whatever host is eventually chosen, configured via `.env` (endpoint/credentials/bucket). Same code path in both environments — only the endpoint changes. If a managed provider (S3/R2/B2/Spaces) is ever preferred later, it's a drop-in swap since the client code only depends on the S3 protocol. Only `storage_key` is stored in Postgres; images are served via presigned URLs for now (no CDN yet).
+**MinIO, self-hosted, in both dev and production.** It speaks the S3 API (via `boto3`/`aioboto3`, so `storage.py` only ever targets the S3 *protocol*, never a MinIO-specific SDK) — not DB blobs (bloats Postgres) and not local disk (breaks on any multi-instance or ephemeral-filesystem deployment). Local dev runs a MinIO container in `compose.yaml` alongside Postgres; production runs the same MinIO image on whatever host is eventually chosen, configured via `.env` (endpoint/credentials/bucket). Same code path in both environments — only the endpoint changes. If a managed provider (S3/R2/B2/Spaces) is ever preferred later, it's a drop-in swap since the client code only depends on the S3 protocol. Only `storage_key` is stored in Postgres; images are served via presigned URLs for now (no CDN yet).
 
 ## Phased build order
 
-0. **Scaffolding** — `docker-compose.yml` (Postgres + MinIO + backend), FastAPI skeleton (health check, DB connection, initial `users` migration), Flutter skeleton (`flutter create` for android+web, basic nav shell).
-1. **Auth vertical slice** — backend register/login/JWT; Flutter login/register screens + token storage + an authenticated test screen.
-2. **Single-photo identify → result view** — backend `POST /identify` (one image, no organ tagging yet) calling Pl@ntNet and persisting `identifications`/`identification_images`/`identification_results`; Flutter camera/gallery picker + results display. This is the smallest slice proving the full chain end-to-end.
-3. **Multi-shot capture + organ tagging** — up to 5 images, organ tags, client-side pre-validation, `predictedOrgans` feedback in UI.
-4. **Save to garden + list view** — `plants`/`garden_items` tables, `POST /garden`, `GET /garden`, plain list/grid UI (no animation yet).
-5. **Quota/error-cost hardening** — `GET /v2/quota/daily` passthrough, 429/`Retry-After` handling, remaining-quota indicator in UI.
-6. **Animated virtual garden view** — Flutter canvas-based rendering (CustomPainter) of `garden_items`, drag-to-rearrange writing back `pos_x`/`pos_y`/`layout_data`. Deliberately last: highest-effort, most speculative piece; everything before it is required plumbing regardless of how the visualization evolves.
+**Redefined 2026-10-14: Phase 0 is a web-only MVP.** Android is deferred (it returns after the MVP, before the animated garden). The MVP is the original Phases 0-4 built as five vertical slices; each slice ships working, with its own Playwright e2e test, before the next starts. Phase 0 is architectural-sized; its formal spec and implementation plan live in `docs/superpowers/` once written.
+
+**Phase 0 - Web MVP (Flutter Web + FastAPI + Postgres + MinIO)**
+
+- **0.1 Scaffold** - `backend/` (FastAPI, `uv`, health check, DB connection, initial `users` migration), `compose.yaml` (Postgres + MinIO via podman), Flutter Web served locally, Playwright project, and a smoke test that loads the app and sees the Diary.
+- **0.2 Auth** - backend register/login/JWT; Flutter login/register screens, browser token storage, protected route rejecting bad tokens.
+- **0.3 Single-photo identify** - `POST /identify` stores the photo in MinIO, calls Pl@ntNet, persists `identifications`/`identification_images`/`identification_results`; Flutter picker + results display. Smallest slice proving the whole chain.
+- **0.4 Multi-shot + organ tagging** - up to 5 images, organ tags, client + server validation, `predictedOrgans` feedback in the UI.
+- **0.5 Save to garden + list** - `plants`/`garden_items`, `POST/GET /garden`, Diary shows real saved plants. Fakes replaced by real repositories and kept as test doubles.
+
+**Later phases**
+
+1. **Quota/error-cost hardening** - `GET /v2/quota/daily` passthrough, 429/`Retry-After` handling, remaining-quota indicator in UI.
+2. **Android target** - emulator/device support, Android e2e, licenses and JDK setup.
+3. **Region map, real data** - load nativas dataset, ecoregion-to-province mapping, real coverage queries.
+4. **Animated virtual garden view** - Flutter canvas-based rendering (CustomPainter) of `garden_items`, drag-to-rearrange writing back `pos_x`/`pos_y`/`layout_data`. Deliberately last: highest-effort, most speculative piece; everything before it is required plumbing regardless of how the visualization evolves.
 
 ## Verification per phase
 
 Since this is scaffolding work, "verification" means confirming each phase's vertical slice actually works end-to-end before moving to the next:
-- **Phase 0**: `docker-compose up` brings up Postgres + MinIO + backend; FastAPI health check responds; `flutter run -d chrome` and `flutter run -d android` both launch the nav shell.
+- **Phase 0 (web MVP)**: every slice 0.1-0.5 is verified by a passing Playwright test against the running stack (`podman compose up` for Postgres + MinIO + backend, Flutter Web served locally), with Pl@ntNet stubbed. Slice 0.1: health check responds and Playwright sees the Diary. Slice 0.2: register + login round-trip against the real backend; bad JWTs rejected. Slice 0.3: a real photo upload yields a stubbed-Pl@ntNet identification in the UI plus rows in the three identification tables. Slice 0.5: save a plant, reload, see it in the Diary.
 - **Phase 1**: register + login round-trip works from the Flutter app against the real backend (not mocked); a protected route rejects missing/invalid JWTs.
 - **Phase 2**: a real photo captured/picked in the Flutter app produces a real Pl@ntNet identification, visible in the UI, with a corresponding row in `identifications`/`identification_images`/`identification_results` in Postgres — the critical end-to-end proof point for the whole stack choice.
-- **Each later phase**: demoable on both Android and Web from the same Flutter codebase, since validating that parity holds is the reason Flutter was chosen.
+- **Each later phase**: demoable on Web; once the Android phase lands, also on Android from the same Flutter codebase, since validating that parity holds is the reason Flutter was chosen.
+
+## Dev and test tooling
+
+Decided 2026-10-14. Dev machine is Fedora with Podman (no Docker), Flutter 3.47, `uv`, Node, Android SDK + emulator.
+
+### Environment decisions
+
+- **Container runtime:** `compose.yaml` stays runtime-neutral; locally it runs with `podman compose` (`podman-compose` installed). No Docker-only features.
+- **Backend Python:** managed with `uv` + `pyproject.toml`, pinned to **3.12 or 3.13** (system Python is 3.14, too new for some libraries). Not Poetry.
+- **Targets:** Web only for the Phase 0 MVP; Android returns in its own later phase (the project still targets Android + Web overall). Linux desktop is intentionally unsupported (`flutter doctor` GTK warning is ignored).
+- **GitHub access:** `gh` is not installed; use the GitHub MCP tools or plain git.
+- **Secrets:** `.env` (git-ignored) holds `PLANTNET_API_KEY`; `.env.example` (tracked) holds placeholders only.
+
+### API contract first
+
+FastAPI generates the OpenAPI schema; the Dart DTOs/client are generated from it, so client and backend cannot drift. The client's repository interfaces (`IdentifyRepository`, `PlantsRepository`, `RegionRepository`) stay as the seam: real HTTP implementations are added next to the fakes, and the **fakes are kept as test doubles**.
+
+### Test layers
+
+| Layer | Tooling | Notes |
+|---|---|---|
+| Client unit + widget | `flutter_test`, `mocktail` | Per-repository unit tests, per-screen widget tests; existing `app_flow_test.dart` stays as the smoke test |
+| Client e2e | **Playwright** (Node/TypeScript) driving Flutter Web in Chromium | Flutter semantics enabled in test builds (`ensureSemantics()`, `Semantics(identifier:)`) so tests use normal locators (`getByRole`, `getByText`). No chromedriver, no `integration_test`. Android e2e deferred to the Android phase |
+| Backend unit | `pytest`, `httpx` (FastAPI test client), `respx` | Pl@ntNet is **always mocked** using `docs/examples/plantnet-identify-response.json`; tests never spend real quota |
+| Backend integration | Postgres + MinIO containers (`testcontainers` or the compose stack), Alembic migrations applied | |
+| Full-stack e2e | Playwright against the real backend + Postgres + MinIO, Pl@ntNet stubbed | Mirrors the per-phase verification above: register, identify, save, see in diary |
+| CI | GitHub Actions: `flutter analyze`, `flutter test`, `ruff`, `pytest` on push; e2e on schedule/manual | |
+
+### Local setup status
+
+- Fixed: Flutter's `jdk-dir` pointed at a stale Android Studio flatpak path (hash changed after an update); repointed at the current JBR. Re-run `flutter config --jdk-dir=...` if Android Studio updates again.
+- Deferred to the Android phase: `flutter doctor --android-licenses`. Chromedriver is no longer needed (Playwright manages its own browsers via `npx playwright install chromium`).
