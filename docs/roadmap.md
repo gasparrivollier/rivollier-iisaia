@@ -36,7 +36,7 @@ Web only (Flutter Web + FastAPI + Postgres + MinIO), with **Playwright** e2e tes
 | 0.4 Multi-shot + organs | Up to 5 photos, organ tags, validation, `predictedOrgans` | Invalid sets rejected client + server; organ feedback shown |
 | 0.5 Save to garden | `plants`/`garden_items`, `POST/GET /garden`, real Diary | Save a plant, reload, still in Diary; fakes kept as test doubles |
 
-Status: direction agreed; design sections, written spec and implementation plan still to do (brainstorming in progress).
+Status: spec written (docs/superpowers/specs/2026-10-14-web-mvp-design.md); slice 0.1 plan in docs/superpowers/plans/2026-10-14-slice-0.1-scaffold.md.
 
 ### Later phases
 
