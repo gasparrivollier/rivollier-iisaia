@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:provider/provider.dart';
 
 import 'core/routing.dart';
@@ -7,7 +8,15 @@ import 'data/repositories/identify_repository.dart';
 import 'data/repositories/plants_repository.dart';
 import 'data/repositories/region_repository.dart';
 
+/// True only in builds made with `--dart-define=E2E=true` (Playwright runs).
+/// Forces Flutter Web to emit its DOM semantics tree so tests can locate widgets.
+const bool kE2E = bool.fromEnvironment('E2E');
+
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (kE2E) {
+    SemanticsBinding.instance.ensureSemantics();
+  }
   runApp(const YvotyApp());
 }
 

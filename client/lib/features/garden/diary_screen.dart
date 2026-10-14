@@ -91,7 +91,10 @@ class _Header extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('My Diary', style: context.yvotyType.serifStyle(fontSize: 21)),
+              Semantics(
+                identifier: 'diary-title',
+                child: Text('My Diary', style: context.yvotyType.serifStyle(fontSize: 21)),
+              ),
               const SizedBox(height: 2),
               Text(
                 '$count specimens catalogued',
