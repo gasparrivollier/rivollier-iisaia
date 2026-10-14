@@ -369,3 +369,48 @@ Oldest entries go at the **top** (chronological order). See `CLAUDE.md` for the 
 **Notes / caveats:**
 - Android Studio's bundled JBR (not a system package) is now the JDK Flutter's Gradle builds use on this machine — recorded via `flutter config --jdk-dir`, so it persists across sessions without needing `JAVA_HOME` exported manually.
 - The `-gpu host` requirement means the emulator needs a real GPU on the host; if this ever runs somewhere without one, software rendering (`swiftshader_indirect`) crashed reliably here and would need further investigation (a newer/older emulator build, or a different software renderer) rather than being assumed to work.
+
+
+## 2026-09-05 — Scrape nativas.lanacion.com.ar for native-species-by-region data
+
+**Prompt (verbatim):** "exploremos la forma de sacar la informacion de las plantas e imagenes de este sitio asi como las regiones donde pueden estar las plantas. https://nativas.lanacion.com.ar/"
+
+**Actions taken:**
+1. Investigated the site's structure with `WebFetch` (listing page `/plantas`, detail page `/plantas/planta/Canna_glauca`), then confirmed with `curl` that each page embeds its full data in a `<script id="__NEXT_DATA__">` tag (Next.js SSR) — `props.pageProps.allPlantasData` on `/plantas` (265 species, id/nombre/nombre_popular/ecoregiones/portada/filtros/busqueda) and `props.pageProps.plantaData` on each detail page (family, description, care requirements, seasonal bloom/fruit/foliage calendar, fauna, habitat, and a `fotos` array with per-photo credit).
+2. Verified `/_next/data/<buildId>/...` returns 404 (not a usable API) and confirmed the detail-page slug rule (`nombre.replace(' ', '_')`, literal — no accent/whitespace normalization) against two edge-case names: `"Tillandsia aeränthos"` (accented char, 200) and `"Acanthosyris  spinescens"` (double space → double underscore, 200; collapsing to a single underscore 500s).
+3. Checked `robots.txt` (allows all) and confirmed no pagination on `/plantas` (all 265 species in one response); confirmed no locality→ecoregion dataset is exposed on these pages (the "Ingresá una localidad argentina" search uses an undisclosed endpoint, out of scope).
+4. Used `AskUserQuestion` to resolve a modeling mismatch found during exploration: the site tags species by **ecoregion** (17 ecological zones) while Yvoty's existing region model (`client/lib/data/models/region.dart`, `ar-lowpoly.geojson`) is by the 24 political provinces. User chose: store ecoregión as scraped, derive province coverage later via a static ecoregion→province mapping table (not migrating the region model, not discarding ecoregion data).
+5. Wrote `scripts/fetch_nativas_species.py` (two phases: `list` and `detail`, mirroring the style of `scripts/fetch_plantnet_species.py`) and ran both phases successfully: `list` produced 265 rows, `detail` fetched all 265 detail records with 0 failures (~1 min, 0.2s delay between requests).
+6. Wrote `docs/nativas-source.md` documenting the `__NEXT_DATA__` shape, the 17 ecoregions found, the image CDN base, and the slug-derivation edge cases.
+7. Updated `docs/architecture.md`'s "Region map addition" section to record the resolved data source and the ecoregion/province modeling decision, replacing the earlier "follow-up data-curation task" note.
+
+**Files changed:**
+- `scripts/fetch_nativas_species.py` (new) — scraper, `list`/`detail` subcommands.
+- `docs/nativas-source.md` (new) — data source reference.
+- `docs/examples/nativas-species.csv` (new) — 265 rows: id, nombre_cientifico, nombre_popular, ecoregiones, portada_url, filtros.
+- `docs/examples/nativas-species-detail.jsonl` (new) — 265 full detail records (JSON lines), incl. `fotos` with `image_url` + `credito` per photo.
+- `docs/architecture.md` (edited) — recorded the resolved data source and ecoregion/province decision in the region map section; added `docs/nativas-source.md` to the related-docs line.
+
+**Notes / caveats:**
+- This pass only produces and documents the scraped dataset — it does **not** load it into Postgres, does not build the ecoregion→province mapping table, and does not touch the Dart region model/map screen. Those are explicit follow-ups.
+- Photos are referenced by absolute CDN URL + individual `credito` (photographer attribution) in the JSONL, not bulk-downloaded into the repo — each image is credited to La Nación/Aves Argentinas contributors individually, so bulk-downloading ~1000 files wasn't appropriate for this pass. Selective local asset curation (like the existing `assets/plants/jazmin`/`nomeolvides` folders) is left for when specific species are chosen for local bundling.
+
+
+## 2026-09-05 — Split out readable columns from the nativas.lanacion.com.ar scrape's `filtros` blob
+
+**Prompt (verbatim):** "Lo que pones como filtro me gustaria tener algunas columnas separadas. Me gustarian los datos Ambiente, Duración, Tipo de follaje, Color de floracion, Perfume, Propagacion." (with a screenshot of the site's detail page showing those labeled fields).
+
+**Actions taken:**
+1. Confirmed the requested fields map directly to fields already present in `plantaData` (per-species detail): `duracion`, `follaje`, `color_nombre`, `perfume` (bool), `propagacion` — plus `ambiente`, which isn't a single field but four independent booleans (`ambiente_bosque_seco`/`ambiente_pastizal`/`ambiente_lagunas_banados`/`ambiente_bosque_humedo`); checked the distribution across all 265 detail records and found 66 species tagged with 2 of the 4, 9 with 3, and 1 with all 4 — so `ambiente` needs to be a joined list, not a single value.
+2. Updated `scripts/fetch_nativas_species.py`: added `AMBIENTE_LABELS`/`DETAIL_COLUMNS`/`detail_columns_for()` to derive the six new columns from a detail record, extended `LIST_COLUMNS`/`write_list_csv` to include them (blank after `list` alone, since they only exist in detail data), and added `enrich_list_csv_with_detail()` which `run_detail` now calls at the end to rewrite `nativas-species.csv` in place with these columns filled in from the detail records it just fetched.
+3. Re-ran both phases end-to-end (`list` then `detail`) to regenerate the dataset; 265/265 detail fetches succeeded again, 265/265 rows enriched. Spot-checked `Canna glauca` and `Alstroemeria aurea` (the latter has two `ambiente` tags) against the raw JSON to confirm correct joining/capitalization.
+4. Updated `docs/nativas-source.md` to document the new columns and the `ambiente` multi-value join.
+
+**Files changed:**
+- `scripts/fetch_nativas_species.py` (edited) — added the six derived columns and the CSV-enrichment step.
+- `docs/examples/nativas-species.csv` (regenerated) — now has `ambiente, duracion, tipo_follaje, color_floracion, perfume, propagacion` columns alongside the original `filtros` blob (kept, not replaced).
+- `docs/examples/nativas-species-detail.jsonl` (regenerated, unchanged shape) — re-fetched as a side effect of getting fresh detail data for the enrichment.
+- `docs/nativas-source.md` (edited) — documented the new columns.
+
+**Notes / caveats:**
+- `filtros` was kept as-is (not removed) — the user asked for *additional* separated columns, not to replace the existing catch-all tag column, since `filtros` still carries other tags (fauna, habit, sun/water) not covered by the six requested fields.

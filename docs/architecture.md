@@ -2,7 +2,7 @@
 
 Plant-identification "pokedex" + virtual garden app. This document records the system architecture decided for the project: client/backend/data stack, repo layout, data model, auth, image storage, and build order. It's the reference other design/implementation decisions should build on.
 
-Related: `docs/plantnet-api.md` (Pl@ntNet API reference this architecture integrates with).
+Related: `docs/plantnet-api.md` (Pl@ntNet API reference this architecture integrates with); `docs/nativas-source.md` (native-species-by-region data source for the region map feature).
 
 ## Decisions and why
 
@@ -83,8 +83,12 @@ Rationale: `identifications`/`identification_images`/`identification_results` re
 Supports the "collection progress by province" screen (`client/lib/features/region/`, ported from `design/yvoty-ui/05-Region-Map.html`):
 
 - **`provinces`** — id, name, slug. Static reference data (Argentina's 24 provinces don't change); geometry itself ships as a bundled client asset (`ar-lowpoly.geojson`), not DB rows.
-- **`region_species`** — id, province_id (FK), scientific_name, common_name, is_native. Curated reference/seed data, same category as the Pl@ntNet species catalog dump (`docs/examples/plantnet-species.csv`). Populating this beyond a handful of sample provinces is a **follow-up data-curation task** — Pl@ntNet's API has no "native species by region" endpoint, so this needs another source (a regional flora reference, GBIF occurrence data, or manual curation).
+- **`region_species`** — id, province_id (FK), scientific_name, common_name, is_native. Curated reference/seed data, same category as the Pl@ntNet species catalog dump (`docs/examples/plantnet-species.csv`).
 - Per-province **coverage** (`have`/`total` shown in the UI) is computed at query time by joining a user's `plants.scientific_name` against `region_species` for that province — no new junction table needed.
+
+**Data source (resolved):** `nativas.lanacion.com.ar` (La Nación/Aves Argentinas/Revista Jardín) provides exactly the native-species-by-region data Pl@ntNet doesn't — ~265 species with scientific/common names, rich per-species detail, and region tags. Scraped into `docs/examples/nativas-species.csv` (id/name/ecoregiones/cover image) and `nativas-species-detail.jsonl` (full detail incl. family, description, care requirements, bloom calendar, fauna, and per-photo attribution) by `scripts/fetch_nativas_species.py`; full shape and scrape mechanics documented in `docs/nativas-source.md`.
+
+**Wrinkle:** the site tags species by **ecoregion** (17 ecological zones — Selva Paranaense, Yungas, Pampeana, Puna, etc.), not by the 24 political provinces `region_species`/`ar-lowpoly.geojson` use — an ecoregion doesn't map 1:1 onto the provinces it overlaps (e.g. a Yungas-only species spans parts of Jujuy/Salta/Tucumán, not their entirety). Decision: `region_species` (or a new `ecoregion_species` table) stores ecoregión as scraped — not discarded, not replaced — with a separate static ecoregion→province(s) mapping table joined at query time to keep serving the existing province-based map screen. Populating the mapping table and loading the scraped dataset into Postgres remains a **follow-up task**; this pass only produced and documented the source dataset.
 
 ## Auth
 
