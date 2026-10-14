@@ -22,8 +22,9 @@ async function waitFor(url: string, timeoutMs: number): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<void> {
+  // With E2E_SKIP_COMPOSE the caller is responsible for a stack whose backend points at fake-plantnet.
   if (!process.env.E2E_SKIP_COMPOSE) {
-    execSync('podman compose up -d --build', {
+    execSync('podman compose up -d --build --force-recreate', {
       cwd: ROOT,
       stdio: 'inherit',
       // Shell env beats .env in compose interpolation: e2e can never hit the real Pl@ntNet.

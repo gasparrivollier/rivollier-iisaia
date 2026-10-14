@@ -20,6 +20,7 @@ cd backend && uv run pytest -m integration   # needs compose postgres up
 cd backend && uv run ruff check . && uv run ruff format --check .
 cd fake-plantnet && uv run pytest
 cd client && flutter analyze && flutter test
+cd e2e && npm ci && npx playwright install chromium   # first run only
 cd e2e && npm test                    # builds Flutter web (E2E=true), brings stack up, runs Playwright
 ```
 

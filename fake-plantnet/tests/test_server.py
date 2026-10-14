@@ -1,3 +1,6 @@
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -44,6 +47,7 @@ def test_forced_429_applies_once_with_retry_after(client):
     assert client.post("/_control/next-status", json={"status": 429}).status_code == 200
     first = client.post("/v2/identify/all?api-key=k", files=IMG)
     assert first.status_code == 429
-    assert first.headers["Retry-After"].endswith("GMT")
+    retry_at = parsedate_to_datetime(first.headers["Retry-After"])
+    assert retry_at > datetime.now(UTC)
     second = client.post("/v2/identify/all?api-key=k", files=IMG)
     assert second.status_code == 200

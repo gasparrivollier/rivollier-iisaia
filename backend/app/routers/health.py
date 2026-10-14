@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,7 +11,7 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
-def health(response: Response, db: Session = Depends(get_db)) -> dict[str, str]:  # noqa: B008
+def health(response: Response, db: Annotated[Session, Depends(get_db)]) -> dict[str, str]:
     try:
         db.execute(text("SELECT 1"))
     except SQLAlchemyError:

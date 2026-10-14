@@ -10,6 +10,16 @@ from app.main import create_app
 TEST_DB = "yvoty_test"
 
 
+@pytest.fixture(autouse=True)
+def _isolate_plantnet_settings(monkeypatch):
+    """Never let a real key/URL from ../.env or the shell leak into backend tests."""
+    monkeypatch.setenv("PLANTNET_BASE_URL", "http://localhost:8100")
+    monkeypatch.setenv("PLANTNET_API_KEY", "")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
 class _OkSession:
     def execute(self, *_args, **_kwargs):
         return None

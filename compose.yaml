@@ -49,6 +49,7 @@ services:
       S3_ACCESS_KEY: ${S3_ACCESS_KEY:-yvoty}
       S3_SECRET_KEY: ${S3_SECRET_KEY:-yvoty-secret}
       S3_BUCKET: ${S3_BUCKET:-yvoty-photos}
+    restart: on-failure
     ports:
       - "8000:8000"
     depends_on:

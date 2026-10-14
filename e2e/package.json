@@ -2,10 +2,7 @@
   "name": "e2e",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "directories": {
-    "test": "tests"
-  },
+  "private": true,
   "scripts": {
     "build:web": "cd ../client && flutter build web --dart-define=E2E=true --no-web-resources-cdn",
     "test": "npm run build:web && playwright test",

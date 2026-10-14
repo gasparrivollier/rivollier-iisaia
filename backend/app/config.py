@@ -10,7 +10,9 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://yvoty:yvoty@localhost:5432/yvoty"
     plantnet_api_key: str = ""
-    plantnet_base_url: str = "https://my-api.plantnet.org"
+    # Defaults to fake-plantnet; the real API (https://my-api.plantnet.org) must be opted in
+    # explicitly.
+    plantnet_base_url: str = "http://localhost:8100"
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "yvoty"
     s3_secret_key: str = "yvoty-secret"

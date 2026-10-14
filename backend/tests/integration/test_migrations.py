@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -6,10 +8,13 @@ from sqlalchemy.exc import IntegrityError
 
 pytestmark = pytest.mark.integration
 
+BACKEND_DIR = Path(__file__).parents[2]
+
 
 def _cfg(url: str) -> Config:
-    cfg = Config("alembic.ini")
-    cfg.set_main_option("sqlalchemy.url", url)
+    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
     return cfg
 
 

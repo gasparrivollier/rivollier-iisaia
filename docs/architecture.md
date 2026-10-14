@@ -61,7 +61,7 @@ yvoty/
 │       ├── features/            # auth/, identify/, plants/, garden/
 │       ├── data/                 # API client, DTOs
 │       └── core/                  # theming, routing, shared widgets
-├── compose.yaml                 # postgres + minio + backend, for local dev (runtime-neutral: docker or podman compose)
+├── compose.yaml                 # postgres + minio + backend + fake-plantnet, for local dev (runtime-neutral: docker or podman compose)
 ├── .env.example / .env          # already exist
 ```
 
