@@ -28,19 +28,23 @@ Future<void> main() async {
   if (kE2E) {
     SemanticsBinding.instance.ensureSemantics();
   }
-  final auth = AuthController(
-    repository: HttpAuthRepository(ApiClient(baseUrl: kApiBaseUrl)),
+  // The hook needs the controller, which needs the repository, which needs the client.
+  late final AuthController auth;
+  final api = ApiClient(baseUrl: kApiBaseUrl, onUnauthorized: () => auth.logout());
+  auth = AuthController(
+    repository: HttpAuthRepository(api),
     tokens: TokenStore(await SharedPreferences.getInstance()),
   );
   // Before runApp, so a reload with a valid token never flashes the login screen.
   await auth.restore();
-  runApp(YvotyApp(auth: auth));
+  runApp(YvotyApp(auth: auth, api: api));
 }
 
 class YvotyApp extends StatefulWidget {
-  const YvotyApp({super.key, required this.auth});
+  const YvotyApp({super.key, required this.auth, this.api});
 
   final AuthController auth;
+  final ApiClient? api;
 
   @override
   State<YvotyApp> createState() => _YvotyAppState();

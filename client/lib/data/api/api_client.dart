@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
 /// A failed call to the Yvoty backend. [statusCode] is the HTTP status, or 0 when
 /// the backend could not be reached (network error or timeout).
 class ApiException implements Exception {
-  ApiException(this.statusCode, this.message, {this.fieldErrors = const {}});
+  ApiException(this.statusCode, this.message, {this.fieldErrors = const {}, this.retryAfter});
 
   final int statusCode;
   final String message;
@@ -14,6 +15,9 @@ class ApiException implements Exception {
   /// Per-field validation messages from a 422, keyed by the last `loc` element
   /// (e.g. 'email', 'password', 'display_name').
   final Map<String, String> fieldErrors;
+
+  /// Raw `Retry-After` response header (an HTTP date from Pl@ntNet), if the server sent one.
+  final String? retryAfter;
 
   @override
   String toString() => 'ApiException($statusCode): $message';
@@ -26,11 +30,15 @@ class ApiClient {
     required this.baseUrl,
     http.Client? httpClient,
     this.timeout = const Duration(seconds: 10),
+    this.onUnauthorized,
   }) : _http = httpClient ?? http.Client();
 
   final String baseUrl;
   final Duration timeout;
   final http.Client _http;
+
+  /// Called when a request that carried a bearer token gets a 401 (session expired).
+  final void Function()? onUnauthorized;
 
   Future<Map<String, dynamic>> postJson(String path, Map<String, Object?> body) => _send(
         () => _http.post(
@@ -45,21 +53,52 @@ class ApiClient {
           _uri(path),
           headers: {if (token != null) 'Authorization': 'Bearer $token'},
         ),
+        authenticated: token != null,
+      );
+
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    required String field,
+    required Uint8List bytes,
+    required String filename,
+    String? token,
+    Duration? timeout,
+  }) =>
+      _send(
+        () async {
+          final req = http.MultipartRequest('POST', _uri(path))
+            ..files.add(http.MultipartFile.fromBytes(field, bytes, filename: filename));
+          if (token != null) req.headers['Authorization'] = 'Bearer $token';
+          return http.Response.fromStream(await _http.send(req));
+        },
+        authenticated: token != null,
+        timeout: timeout,
       );
 
   Uri _uri(String path) => Uri.parse('$baseUrl$path');
 
-  Future<Map<String, dynamic>> _send(Future<http.Response> Function() request) async {
+  Future<Map<String, dynamic>> _send(
+    Future<http.Response> Function() request, {
+    bool authenticated = false,
+    Duration? timeout,
+  }) async {
+    final limit = timeout ?? this.timeout;
     final http.Response res;
     try {
-      res = await request().timeout(timeout);
+      res = await request().timeout(limit);
     } on http.ClientException catch (e) {
       throw ApiException(0, e.message);
     } on TimeoutException {
-      throw ApiException(0, 'Timed out after ${timeout.inSeconds}s');
+      throw ApiException(0, 'Timed out after ${limit.inSeconds}s');
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw ApiException(res.statusCode, _detail(res.body), fieldErrors: _fieldErrors(res.body));
+      if (res.statusCode == 401 && authenticated) onUnauthorized?.call();
+      throw ApiException(
+        res.statusCode,
+        _detail(res.body),
+        fieldErrors: _fieldErrors(res.body),
+        retryAfter: res.headers['retry-after'],
+      );
     }
     try {
       return jsonDecode(res.body) as Map<String, dynamic>;
