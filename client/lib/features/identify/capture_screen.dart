@@ -40,15 +40,20 @@ class _CaptureScreenState extends State<CaptureScreen> {
   final List<PhotoShot> _shots = [];
   String? _error;
   bool _identifying = false;
+  bool _picking = false;
 
-  bool get _canAdd => _shots.length < kMaxShots && !_identifying;
+  bool get _canAdd => _shots.length < kMaxShots && !_identifying && !_picking;
   int get _totalBytes => _shots.fold(0, (sum, s) => sum + s.photo.bytes.length);
 
   Future<void> _pick() async {
-    setState(() => _error = null);
+    if (!_canAdd) return;
+    setState(() {
+      _error = null;
+      _picking = true;
+    });
     try {
       final photo = await context.read<PhotoPicker>().pick();
-      if (!mounted || photo == null) return;
+      if (!mounted || photo == null || _shots.length >= kMaxShots) return;
       if (_totalBytes + photo.bytes.length > kMaxTotalPhotoBytes) {
         setState(() => _error = '${photo.name}: photos can total at most 50 MB.');
         return;
@@ -57,6 +62,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
     } on PhotoRejected catch (e) {
       if (!mounted) return;
       setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _picking = false);
     }
   }
 
@@ -235,7 +242,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   identifier: 'identify-submit',
                   child: ElevatedButton(
                     key: const Key('identifyButton'),
-                    onPressed: (_shots.isEmpty || _identifying) ? null : _identify,
+                    onPressed: (_shots.isEmpty || _identifying || _picking) ? null : _identify,
                     child: _identifying
                         ? const SizedBox(
                             width: 20,

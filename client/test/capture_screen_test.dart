@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -55,6 +56,19 @@ Future<void> _tapKey(WidgetTester tester, String key) async {
   await tester.ensureVisible(find.byKey(Key(key)));
   await tester.tap(find.byKey(Key(key)));
   await tester.pump();
+}
+
+class _SlowPicker implements PhotoPicker {
+  final pending = <Completer<PickedPhoto?>>[];
+  int picks = 0;
+
+  @override
+  Future<PickedPhoto?> pick() {
+    picks++;
+    final c = Completer<PickedPhoto?>();
+    pending.add(c);
+    return c.future;
+  }
 }
 
 bool _identifyEnabled(WidgetTester tester) =>
@@ -186,6 +200,23 @@ void main() {
     expect(find.textContaining('limit'), findsOneWidget);
     expect(find.text('RESULTS PAGE'), findsNothing);
     expect(find.text('1/5 photos'), findsOneWidget);
+    expect(_identifyEnabled(tester), isTrue);
+  });
+
+  testWidgets('while a pick is still decoding, add and identify are disabled', (tester) async {
+    final picker = _SlowPicker();
+    await tester.pumpWidget(_app(picker, _Repo()));
+    await _pick(tester); // first pick starts and stays pending
+    expect(_pickEnabled(tester), isFalse);
+    expect(_identifyEnabled(tester), isFalse);
+
+    await _pick(tester); // a second tap must not start another pick
+    expect(picker.picks, 1);
+
+    picker.pending.single.complete(_photo('a.png'));
+    await tester.pumpAndSettle();
+    expect(find.text('1/5 photos'), findsOneWidget);
+    expect(_pickEnabled(tester), isTrue);
     expect(_identifyEnabled(tester), isTrue);
   });
 
