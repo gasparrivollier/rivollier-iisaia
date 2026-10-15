@@ -18,6 +18,7 @@ class ResultsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final detected = outcome.detectedOrgan;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -49,7 +50,7 @@ class ResultsScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            if (outcome.predictedOrgan != null)
+            if (detected != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.xl, AppSpacing.xxl, 0),
                 child: Container(
@@ -71,9 +72,9 @@ class ResultsScreen extends StatelessWidget {
                             children: [
                               const TextSpan(text: 'We detected a '),
                               TextSpan(
-                                  text: outcome.predictedOrgan,
+                                  text: detected.organ,
                                   style: const TextStyle(fontWeight: FontWeight.w700)),
-                              const TextSpan(text: ' in your photo.'),
+                              TextSpan(text: ' in photo ${detected.photo}.'),
                             ],
                           ),
                         ),

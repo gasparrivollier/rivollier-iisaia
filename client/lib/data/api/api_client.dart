@@ -23,6 +23,15 @@ class ApiException implements Exception {
   String toString() => 'ApiException($statusCode): $message';
 }
 
+/// One file part of a multipart upload.
+class UploadPart {
+  const UploadPart({required this.field, required this.bytes, required this.filename});
+
+  final String field;
+  final Uint8List bytes;
+  final String filename;
+}
+
 /// Thin JSON-over-HTTP client for the Yvoty backend. Paths and field names mirror
 /// backend/openapi.json; test/api_contract_test.dart keeps the two in sync.
 class ApiClient {
@@ -56,18 +65,24 @@ class ApiClient {
         authenticated: token != null,
       );
 
+  /// Multipart POST. [fields] may repeat a key (MultipartRequest.fields is a Map and cannot),
+  /// so each one is sent as a text part with no filename, which servers read as a form field.
   Future<Map<String, dynamic>> postMultipart(
     String path, {
-    required String field,
-    required Uint8List bytes,
-    required String filename,
+    required List<UploadPart> files,
+    List<MapEntry<String, String>> fields = const [],
     String? token,
     Duration? timeout,
   }) =>
       _send(
         () async {
-          final req = http.MultipartRequest('POST', _uri(path))
-            ..files.add(http.MultipartFile.fromBytes(field, bytes, filename: filename));
+          final req = http.MultipartRequest('POST', _uri(path));
+          for (final f in files) {
+            req.files.add(http.MultipartFile.fromBytes(f.field, f.bytes, filename: f.filename));
+          }
+          for (final f in fields) {
+            req.files.add(http.MultipartFile.fromString(f.key, f.value));
+          }
           if (token != null) req.headers['Authorization'] = 'Bearer $token';
           return http.Response.fromStream(await _http.send(req));
         },

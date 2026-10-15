@@ -14,29 +14,42 @@ ApiClient _client(MockClientHandler handler, {void Function()? onUnauthorized}) 
 
 Future<Map<String, dynamic>> _upload(ApiClient c, {String? token}) => c.postMultipart(
       '/identify',
-      field: 'image',
-      bytes: Uint8List.fromList([1, 2, 3]),
-      filename: 'leaf.png',
+      files: [
+        UploadPart(field: 'images', bytes: Uint8List.fromList([1, 2, 3]), filename: 'leaf.png')
+      ],
+      fields: const [MapEntry('organs', 'auto')],
       token: token,
     );
 
 void main() {
-  test('postMultipart sends the file under the field name with the bearer token', () async {
+  test('postMultipart repeats image parts and organ fields, with the bearer token', () async {
     late http.Request sent;
     final c = _client((req) async {
       sent = req;
       return http.Response(jsonEncode({'ok': true}), 200);
     });
 
-    final json = await _upload(c, token: 'a.b.c');
+    final json = await c.postMultipart(
+      '/identify',
+      files: [
+        UploadPart(field: 'images', bytes: Uint8List.fromList([1]), filename: 'a.png'),
+        UploadPart(field: 'images', bytes: Uint8List.fromList([2]), filename: 'b.png'),
+      ],
+      fields: const [MapEntry('organs', 'flower'), MapEntry('organs', 'leaf')],
+      token: 'a.b.c',
+    );
 
     expect(json, {'ok': true});
     expect(sent.method, 'POST');
     expect(sent.url.toString(), 'http://api.test/identify');
     expect(sent.headers['Authorization'], 'Bearer a.b.c');
     expect(sent.headers['content-type'], startsWith('multipart/form-data'));
-    expect(sent.body, contains('name="image"'));
-    expect(sent.body, contains('filename="leaf.png"'));
+    expect(RegExp('name="images"').allMatches(sent.body), hasLength(2));
+    expect(sent.body, contains('filename="a.png"'));
+    expect(sent.body, contains('filename="b.png"'));
+    // organ parts are plain form fields: a name, no filename, values in order
+    expect(RegExp('name="organs"\r\n').allMatches(sent.body), hasLength(2));
+    expect(sent.body.indexOf('flower'), lessThan(sent.body.indexOf('leaf')));
   });
 
   test('a 401 on an authenticated call fires onUnauthorized once and still throws', () async {
@@ -78,9 +91,7 @@ void main() {
 
     await expectLater(
       c.postMultipart('/identify',
-          field: 'image',
-          bytes: Uint8List(1),
-          filename: 'a.png',
+          files: [UploadPart(field: 'images', bytes: Uint8List(1), filename: 'a.png')],
           timeout: const Duration(milliseconds: 20)),
       throwsA(isA<ApiException>().having((e) => e.statusCode, 'status', 0)),
     );

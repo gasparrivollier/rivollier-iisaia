@@ -8,9 +8,9 @@ import 'package:yvoty/data/models/identification_result.dart';
 import 'package:yvoty/data/repositories/plants_repository.dart';
 import 'package:yvoty/features/identify/results_screen.dart';
 
-IdentifyOutcome _outcome({String? organ}) => IdentifyOutcome(
+IdentifyOutcome _outcome({List<String?> predicted = const []}) => IdentifyOutcome(
       identificationId: 3,
-      predictedOrgan: organ,
+      images: [for (final p in predicted) IdentifyImage(organ: 'auto', predictedOrgan: p)],
       results: const [
         IdentificationResult(
             rank: 1,
@@ -47,13 +47,21 @@ void main() {
   });
 
   testWidgets('shows the organ banner only when the backend predicted one', (tester) async {
-    await tester.pumpWidget(_app(_outcome()));
+    await tester.pumpWidget(_app(_outcome(predicted: [null])));
     expect(find.textContaining('We detected'), findsNothing);
 
-    await tester.pumpWidget(_app(_outcome(organ: 'flower')));
+    await tester.pumpWidget(_app(_outcome(predicted: ['flower'])));
     await tester.pump();
     expect(find.textContaining('We detected a'), findsOneWidget);
     expect(find.textContaining('flower'), findsOneWidget);
+    expect(find.textContaining('photo 1'), findsOneWidget);
+  });
+
+  testWidgets('the banner names the first photo that has a prediction', (tester) async {
+    await tester.pumpWidget(_app(_outcome(predicted: [null, 'fruit', 'leaf'])));
+    expect(find.textContaining('fruit'), findsOneWidget);
+    expect(find.textContaining('photo 2'), findsOneWidget);
+    expect(find.textContaining('leaf'), findsNothing);
   });
 
   testWidgets('a candidate without common names renders without an empty line', (tester) async {

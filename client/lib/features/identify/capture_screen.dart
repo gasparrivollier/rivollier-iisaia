@@ -5,8 +5,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/widgets.dart';
 import '../../data/api/api_client.dart';
-import '../../data/models/picked_photo.dart';
+import '../../data/models/photo_shot.dart';
 import '../../data/photo_picker.dart';
+import '../../data/photo_validation.dart';
 import '../../data/repositories/identify_repository.dart';
 
 /// User-facing text for a failed identify call.
@@ -20,14 +21,14 @@ String identifyErrorMessage(ApiException e) {
       return 'The identification service is unavailable. Try again in a moment.';
     case 413:
     case 422:
-      return e.fieldErrors['image'] ?? e.message;
+      return e.fieldErrors['images'] ?? e.fieldErrors['organs'] ?? e.message;
     default:
       return 'Something went wrong (${e.statusCode}). Please try again.';
   }
 }
 
-/// Port of design/yvoty-ui/01-Capture.dc.html, reduced to a single chosen photo (slice 0.3).
-/// Multi-photo sessions, organ tags and field notes return in later slices.
+/// Port of design/yvoty-ui/01-Capture.dc.html: up to five photos of one plant, each tagged
+/// with the organ it shows. Field notes return in a later slice.
 class CaptureScreen extends StatefulWidget {
   const CaptureScreen({super.key});
 
@@ -36,34 +37,45 @@ class CaptureScreen extends StatefulWidget {
 }
 
 class _CaptureScreenState extends State<CaptureScreen> {
-  PickedPhoto? _photo;
+  final List<PhotoShot> _shots = [];
   String? _error;
   bool _identifying = false;
+
+  bool get _canAdd => _shots.length < kMaxShots && !_identifying;
+  int get _totalBytes => _shots.fold(0, (sum, s) => sum + s.photo.bytes.length);
 
   Future<void> _pick() async {
     setState(() => _error = null);
     try {
       final photo = await context.read<PhotoPicker>().pick();
       if (!mounted || photo == null) return;
-      setState(() => _photo = photo);
+      if (_totalBytes + photo.bytes.length > kMaxTotalPhotoBytes) {
+        setState(() => _error = '${photo.name}: photos can total at most 50 MB.');
+        return;
+      }
+      setState(() => _shots.add(PhotoShot(photo: photo)));
     } on PhotoRejected catch (e) {
       if (!mounted) return;
-      setState(() {
-        _photo = null;
-        _error = e.message;
-      });
+      setState(() => _error = e.message);
     }
   }
 
+  void _setOrgan(int index, String organ) =>
+      setState(() => _shots[index] = _shots[index].withOrgan(organ));
+
+  void _remove(int index) => setState(() {
+        _shots.removeAt(index);
+        _error = null;
+      });
+
   Future<void> _identify() async {
-    final photo = _photo;
-    if (photo == null) return;
+    if (_shots.isEmpty) return;
     setState(() {
       _identifying = true;
       _error = null;
     });
     try {
-      final outcome = await context.read<IdentifyRepository>().identify(photo: photo);
+      final outcome = await context.read<IdentifyRepository>().identify(shots: List.of(_shots));
       if (!mounted) return;
       context.push('/results', extra: outcome);
     } on ApiException catch (e) {
@@ -77,7 +89,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final photo = _photo;
+    final latest = _shots.isEmpty ? null : _shots.last;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -111,28 +123,23 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Flower or fruit shots identify best. Choose one clear photo of the plant '
-                        '(JPEG or PNG, at least 800×800).',
+                        'Flower or fruit shots identify best. Add up to 5 photos of the same plant '
+                        '(JPEG or PNG, at least 800×800) and tag what each one shows.',
                         style: TextStyle(fontSize: 13, color: AppColors.inkFaint, height: 1.4),
                       ),
                       const SizedBox(height: 16),
-                      Semantics(
-                        identifier: 'photo-preview',
-                        container: true,
-                        label: photo == null ? 'No photo chosen' : photo.name,
-                        child: AspectRatio(
-                          aspectRatio: 397 / 343,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: photo == null
-                                ? const SketchPlaceholder(
-                                    label: 'no photo yet\n[ choose one below ]', borderRadius: 10)
-                                : Image.memory(
-                                    photo.bytes,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                                  ),
-                          ),
+                      AspectRatio(
+                        aspectRatio: 397 / 343,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: latest == null
+                              ? const SketchPlaceholder(
+                                  label: 'no photo yet\n[ add one below ]', borderRadius: 10)
+                              : Image.memory(
+                                  latest.photo.bytes,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 18),
@@ -140,42 +147,68 @@ class _CaptureScreenState extends State<CaptureScreen> {
                         child: Semantics(
                           identifier: 'pick-photo',
                           button: true,
-                          label: 'Choose photo',
+                          enabled: _canAdd,
+                          label: 'Add photo',
                           child: GestureDetector(
                             key: const Key('pickPhotoButton'),
-                            onTap: _identifying ? null : _pick,
-                            child: Container(
-                              width: 68,
-                              height: 68,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.paperRaised,
-                                border: Border.all(color: AppColors.forest, width: 3),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.ink.withValues(alpha: 0.18),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              child: const Center(
-                                child: Icon(Icons.photo_library_outlined,
-                                    size: 28, color: AppColors.forest),
+                            onTap: _canAdd ? _pick : null,
+                            child: Opacity(
+                              opacity: _canAdd ? 1 : 0.4,
+                              child: Container(
+                                width: 68,
+                                height: 68,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.paperRaised,
+                                  border: Border.all(color: AppColors.forest, width: 3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppColors.ink.withValues(alpha: 0.18),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                                child: const Center(
+                                  child: Icon(Icons.add_photo_alternate_outlined,
+                                      size: 28, color: AppColors.forest),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 10),
-                      Center(
-                        child: Text(
-                          photo == null ? 'Tap to choose a photo' : photo.name,
-                          style: const TextStyle(fontSize: 13, color: AppColors.inkFaint),
-                        ),
+                      const SizedBox(height: 22),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'This session',
+                            style: TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkSoft),
+                          ),
+                          Semantics(
+                            identifier: 'shot-count',
+                            container: true,
+                            label: '${_shots.length}/$kMaxShots photos',
+                            child: Text(
+                              '${_shots.length}/$kMaxShots photos',
+                              style: const TextStyle(fontSize: 13, color: AppColors.inkFaint),
+                            ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 8),
+                      for (var i = 0; i < _shots.length; i++)
+                        _ShotRow(
+                          index: i,
+                          shot: _shots[i],
+                          enabled: !_identifying,
+                          onOrgan: (organ) => _setOrgan(i, organ),
+                          onRemove: () => _remove(i),
+                        ),
                       if (_error != null) ...[
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
                         Semantics(
                           identifier: 'identify-error',
                           liveRegion: true,
@@ -202,7 +235,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   identifier: 'identify-submit',
                   child: ElevatedButton(
                     key: const Key('identifyButton'),
-                    onPressed: (_photo == null || _identifying) ? null : _identify,
+                    onPressed: (_shots.isEmpty || _identifying) ? null : _identify,
                     child: _identifying
                         ? const SizedBox(
                             width: 20,
@@ -216,6 +249,87 @@ class _CaptureScreenState extends State<CaptureScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ShotRow extends StatelessWidget {
+  const _ShotRow({
+    required this.index,
+    required this.shot,
+    required this.enabled,
+    required this.onOrgan,
+    required this.onRemove,
+  });
+
+  final int index;
+  final PhotoShot shot;
+  final bool enabled;
+  final ValueChanged<String> onOrgan;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(7),
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Image.memory(
+                shot.photo.bytes,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => ColoredBox(color: AppColors.forestSoft),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  shot.photo.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13, color: AppColors.ink),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    for (final organ in kOrgans)
+                      Semantics(
+                        identifier: 'shot-$index-organ-$organ',
+                        child: ChoiceChip(
+                          key: Key('shot${index}Organ-$organ'),
+                          label: Text(organ, style: const TextStyle(fontSize: 11.5)),
+                          selected: shot.organ == organ,
+                          visualDensity: VisualDensity.compact,
+                          onSelected: enabled ? (_) => onOrgan(organ) : null,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Semantics(
+            identifier: 'shot-$index-remove',
+            child: IconButton(
+              key: Key('shot${index}Remove'),
+              tooltip: 'Remove photo',
+              icon: const Icon(Icons.close, size: 20, color: AppColors.inkSoft),
+              onPressed: enabled ? onRemove : null,
+            ),
+          ),
+        ],
       ),
     );
   }

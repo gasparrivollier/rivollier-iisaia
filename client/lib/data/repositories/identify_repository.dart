@@ -3,11 +3,11 @@
 import '../api/api_client.dart';
 import '../api/identify_dto.dart';
 import '../models/identification_result.dart';
-import '../models/picked_photo.dart';
+import '../models/photo_shot.dart';
 
 /// Submits one photo to `POST /identify` and returns the ranked candidates.
 abstract class IdentifyRepository {
-  Future<IdentifyOutcome> identify({required PickedPhoto photo});
+  Future<IdentifyOutcome> identify({required List<PhotoShot> shots});
 }
 
 class HttpIdentifyRepository implements IdentifyRepository {
@@ -17,18 +17,20 @@ class HttpIdentifyRepository implements IdentifyRepository {
   final ApiClient _api;
   final String? Function() _readToken;
 
-  /// Pl@ntNet can take a while; longer than ApiClient's 10 s default.
-  static const _timeout = Duration(seconds: 45);
+  /// Up to five photos plus Pl@ntNet; longer than ApiClient's 10 s default.
+  static const _timeout = Duration(seconds: 60);
 
   @override
-  Future<IdentifyOutcome> identify({required PickedPhoto photo}) async {
+  Future<IdentifyOutcome> identify({required List<PhotoShot> shots}) async {
     final token = _readToken();
     if (token == null) throw ApiException(401, 'Not authenticated');
     final json = await _api.postMultipart(
       '/identify',
-      field: 'image',
-      bytes: photo.bytes,
-      filename: photo.name,
+      files: [
+        for (final s in shots)
+          UploadPart(field: 'images', bytes: s.photo.bytes, filename: s.photo.name),
+      ],
+      fields: [for (final s in shots) MapEntry('organs', s.organ)],
       token: token,
       timeout: _timeout,
     );
@@ -43,10 +45,11 @@ class HttpIdentifyRepository implements IdentifyRepository {
 /// In-memory double for widget tests (and the default when no backend is wired).
 class FakeIdentifyRepository implements IdentifyRepository {
   @override
-  Future<IdentifyOutcome> identify({required PickedPhoto photo}) async {
+  Future<IdentifyOutcome> identify({required List<PhotoShot> shots}) async {
     await Future.delayed(const Duration(milliseconds: 600));
     return const IdentifyOutcome(
       identificationId: 1,
+      images: [IdentifyImage(organ: 'auto')],
       results: [
           IdentificationResult(
             rank: 1,

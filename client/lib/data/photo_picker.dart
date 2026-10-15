@@ -29,23 +29,25 @@ class FilePickerPhotoPicker implements PhotoPicker {
     if (file == null) return null;
     final bytes = await file.readAsBytes();
     final problem = await photoProblem(bytes);
-    if (problem != null) throw PhotoRejected(problem);
+    if (problem != null) throw PhotoRejected('${file.name}: $problem');
     return PickedPhoto(name: file.name, bytes: bytes);
   }
 }
 
-/// Test double: returns [photo], throws [PhotoRejected] with [rejection], or cancels (null).
+/// Test double: returns the next of [queue] (else [photo]), throws [PhotoRejected] with
+/// [rejection], or cancels (null).
 class FakePhotoPicker implements PhotoPicker {
-  FakePhotoPicker({this.photo, this.rejection});
+  FakePhotoPicker({this.photo, this.rejection, List<PickedPhoto>? queue}) : queue = queue ?? [];
 
   PickedPhoto? photo;
   String? rejection;
+  final List<PickedPhoto> queue;
   int picks = 0;
 
   @override
   Future<PickedPhoto?> pick() async {
     picks++;
     if (rejection != null) throw PhotoRejected(rejection!);
-    return photo;
+    return queue.isNotEmpty ? queue.removeAt(0) : photo;
   }
 }

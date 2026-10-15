@@ -29,14 +29,15 @@ void main() {
     expect(props('UserOut'), containsAll(['id', 'email', 'display_name']));
   });
 
-  test('identify endpoint accepts a multipart image field and returns the parsed shape', () {
+  test('identify endpoint accepts repeated images + organs and returns the parsed shape', () {
     expect(paths['/identify'], contains('post'));
     final bodyRef = paths['/identify']['post']['requestBody']['content']['multipart/form-data']
         ['schema']['\$ref'] as String;
-    expect(props(bodyRef.split('/').last), contains('image'));
+    expect(props(bodyRef.split('/').last), containsAll(['images', 'organs']));
     expect(props('IdentifyResponse'),
-        containsAll(['identification_id', 'remaining_requests', 'image', 'results']));
-    expect(props('IdentifyImageOut'), containsAll(['url', 'predicted_organ']));
+        containsAll(['identification_id', 'remaining_requests', 'images', 'results']));
+    expect(props('IdentifyImageOut'),
+        containsAll(['url', 'organ', 'predicted_organ', 'predicted_organ_score', 'sort_order']));
     expect(
         props('IdentifyResultOut'),
         containsAll(

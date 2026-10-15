@@ -34,12 +34,13 @@ void main() {
     await tester.tap(find.byKey(const Key('captureFab')));
     await tester.pumpAndSettle();
     expect(find.text('New Specimen'), findsOneWidget);
-    expect(find.text('Tap to choose a photo'), findsOneWidget);
+    expect(find.text('0/5 photos'), findsOneWidget);
 
-    // Choosing a photo enables identify.
+    // Choosing a photo adds a shot and enables identify.
     await tester.ensureVisible(find.byKey(const Key('pickPhotoButton')));
     await tester.tap(find.byKey(const Key('pickPhotoButton')));
     await tester.pumpAndSettle();
+    expect(find.text('1/5 photos'), findsOneWidget);
     expect(find.text('leaf.png'), findsOneWidget);
 
     // Capture -> Results.

@@ -6,6 +6,9 @@ import 'dart:ui' as ui;
 const int kMaxPhotoBytes = 10 * 1024 * 1024;
 const int kMinPhotoSide = 800;
 
+/// Pl@ntNet rejects requests over 50 MB in total (mirrors the backend's MAX_TOTAL_BYTES).
+const int kMaxTotalPhotoBytes = 50 * 1000 * 1000;
+
 const _pngMagic = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 const _jpegMagic = [0xFF, 0xD8, 0xFF];
 
