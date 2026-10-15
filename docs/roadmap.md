@@ -16,6 +16,7 @@ Snapshot as of 2026-10-14. Companion to `docs/architecture.md` (decisions + phas
 | Shared UI | Theme, top bar, pills, journal card, sketch placeholder |
 | Tests | One widget test walking all 5 screens (`test/app_flow_test.dart`) |
 | Repositories | `FakeIdentifyRepository`, `FakePlantsRepository`, `FakeRegionRepository` behind interfaces |
+| Auth | Register/login/me endpoints (JWT), login/register screens, route guard, token in browser storage (slice 0.2) |
 | Web MVP scaffold | backend/ (/health, users migration), compose stack, fake-plantnet, Playwright smoke test (slice 0.1) |
 
 **Data / research**
@@ -37,7 +38,7 @@ Web only (Flutter Web + FastAPI + Postgres + MinIO), with **Playwright** e2e tes
 | 0.4 Multi-shot + organs | Up to 5 photos, organ tags, validation, `predictedOrgans` | Invalid sets rejected client + server; organ feedback shown |
 | 0.5 Save to garden | `plants`/`garden_items`, `POST/GET /garden`, real Diary | Save a plant, reload, still in Diary; fakes kept as test doubles |
 
-Status: slice 0.1 done; next: slice 0.2 (auth) plan.
+Status: slices 0.1–0.2 done; next: slice 0.3 (single-photo identify) plan.
 
 ### Later phases
 

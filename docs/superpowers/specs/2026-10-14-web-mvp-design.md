@@ -18,7 +18,7 @@ Out of scope: Android, quota UI, region-map real data, animated garden, webcam c
 | Pl@ntNet in tests | Backend `PLANTNET_BASE_URL` points to a local fake server; real API only in a manual smoke run |
 | Photo input | File picker (multiple), no webcam |
 | Pl@ntNet project | `all` |
-| Layout | Top-level `e2e/`; Dart API client generated from backend OpenAPI into `client/lib/data/api` |
+| Layout | Top-level `e2e/`; Dart API client hand-written in `client/lib/data/api`, checked against the committed `backend/openapi.json` (codegen deferred; decided in slice 0.2) |
 | Container runtime | `compose.yaml`, run with podman |
 
 ## Slices
