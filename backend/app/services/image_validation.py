@@ -12,6 +12,10 @@ MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MIN_SIDE_PX = 800
 # A tiny, highly compressible PNG can still decode to hundreds of MB of pixels.
 MAX_PIXELS = 50_000_000
+MAX_IMAGES = 5
+# Pl@ntNet rejects requests over 50 MB; five photos at the 10 MiB per-photo cap would exceed it.
+MAX_TOTAL_BYTES = 50_000_000
+ORGANS = ("auto", "leaf", "flower", "fruit", "bark")
 
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _JPEG_MAGIC = b"\xff\xd8\xff"
@@ -58,3 +62,33 @@ def validate_image(data: bytes) -> ValidatedImage:
             f"(this one is {width}x{height})"
         )
     return ValidatedImage(ext=ext, content_type=content_type, width=width, height=height)
+
+
+def validate_set_shape(n_images: int, organs: list[str]) -> None:
+    """Cheap checks on counts and organ tags; run before reading any file body."""
+    if n_images < 1:
+        raise ImageRejected("Add at least one photo")
+    if n_images > MAX_IMAGES:
+        raise ImageRejected(f"At most {MAX_IMAGES} photos per identification")
+    if len(organs) != n_images:
+        raise ImageRejected(
+            f"Got {n_images} photo(s) but {len(organs)} organ tag(s); send one organ per photo"
+        )
+    for i, organ in enumerate(organs, start=1):
+        if organ not in ORGANS:
+            raise ImageRejected(
+                f"Photo {i}: unknown organ {organ[:20]!r} (use one of: {', '.join(ORGANS)})"
+            )
+
+
+def validate_image_set(files: list[bytes], organs: list[str]) -> list[ValidatedImage]:
+    validate_set_shape(len(files), organs)
+    if sum(len(f) for f in files) > MAX_TOTAL_BYTES:
+        raise ImageRejected("Photos total more than 50 MB", status_code=413)
+    validated = []
+    for i, data in enumerate(files, start=1):
+        try:
+            validated.append(validate_image(data))
+        except ImageRejected as e:
+            raise ImageRejected(f"Photo {i}: {e.message}", status_code=e.status_code) from None
+    return validated
