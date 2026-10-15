@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { registerViaApi, seedToken } from '../support/auth';
+import { byId } from '../support/flutter';
 import { BACKEND_URL, FAKE_PLANTNET_URL } from '../support/urls';
 
 test('backend /health reports ok with the database connected', async ({ request }) => {
@@ -21,8 +23,10 @@ test('fake-plantnet replays the recorded identify response', async ({ request })
   expect(body.results.length).toBeGreaterThan(0);
 });
 
-test('app loads and shows the Diary', async ({ page }) => {
+test('app loads and shows the Diary for a signed-in user', async ({ page, request }) => {
+  const { token } = await registerViaApi(request);
+  await seedToken(page, token);
   await page.goto('/');
-  await expect(page.locator('[flt-semantics-identifier="diary-title"]')).toBeVisible();
+  await expect(byId(page, 'diary-title')).toBeVisible();
   await expect(page.getByText('My Diary')).toBeVisible();
 });
