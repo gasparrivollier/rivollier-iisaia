@@ -61,12 +61,15 @@ class DiaryScreen extends StatelessWidget {
             Positioned(
               right: 22,
               bottom: 26,
-              child: FloatingActionButton(
+              child: Semantics(
+                identifier: 'capture-fab',
+                child: FloatingActionButton(
                 key: const Key('captureFab'),
                 onPressed: () => context.push('/capture'),
                 backgroundColor: AppColors.forest,
                 foregroundColor: AppColors.paper,
                 child: const Icon(Icons.add, size: 28),
+              ),
               ),
             ),
           ],

@@ -28,4 +28,18 @@ void main() {
     expect(props('AuthResponse'), containsAll(['access_token', 'token_type', 'user']));
     expect(props('UserOut'), containsAll(['id', 'email', 'display_name']));
   });
+
+  test('identify endpoint accepts a multipart image field and returns the parsed shape', () {
+    expect(paths['/identify'], contains('post'));
+    final bodyRef = paths['/identify']['post']['requestBody']['content']['multipart/form-data']
+        ['schema']['\$ref'] as String;
+    expect(props(bodyRef.split('/').last), contains('image'));
+    expect(props('IdentifyResponse'),
+        containsAll(['identification_id', 'remaining_requests', 'image', 'results']));
+    expect(props('IdentifyImageOut'), containsAll(['url', 'predicted_organ']));
+    expect(
+        props('IdentifyResultOut'),
+        containsAll(
+            ['rank', 'score', 'scientific_name_without_author', 'family', 'common_names']));
+  });
 }

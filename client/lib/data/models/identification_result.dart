@@ -7,7 +7,7 @@ class IdentificationResult {
     required this.commonName,
     required this.family,
     required this.score,
-    required this.sketchLabel,
+    this.sketchLabel = 'sketch:\nplant',
   });
 
   final int rank;

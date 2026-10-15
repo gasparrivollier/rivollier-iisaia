@@ -4,14 +4,30 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../../data/api/api_client.dart';
+import '../../data/models/picked_photo.dart';
+import '../../data/photo_picker.dart';
 import '../../data/repositories/identify_repository.dart';
 
-/// Port of design/yvoty-ui/01-Capture.dc.html.
-///
-/// The hero "viewfinder" is a static placeholder for now — real camera
-/// capture needs the `image_picker`/`camera` plugin, which is backend-
-/// integration work (architecture.md Phase 2/3) out of scope for this
-/// UI-only pass. Tapping the shutter here just increments a mock shot count.
+/// User-facing text for a failed identify call.
+String identifyErrorMessage(ApiException e) {
+  switch (e.statusCode) {
+    case 0:
+      return "Can't reach the server. Check your connection and try again.";
+    case 429:
+      return 'Daily identification limit reached. Please try again later.';
+    case 502:
+      return 'The identification service is unavailable. Try again in a moment.';
+    case 413:
+    case 422:
+      return e.fieldErrors['image'] ?? e.message;
+    default:
+      return 'Something went wrong (${e.statusCode}). Please try again.';
+  }
+}
+
+/// Port of design/yvoty-ui/01-Capture.dc.html, reduced to a single chosen photo (slice 0.3).
+/// Multi-photo sessions, organ tags and field notes return in later slices.
 class CaptureScreen extends StatefulWidget {
   const CaptureScreen({super.key});
 
@@ -20,33 +36,48 @@ class CaptureScreen extends StatefulWidget {
 }
 
 class _CaptureScreenState extends State<CaptureScreen> {
-  static const _organs = ['flower', 'leaf', 'leaf'];
-  int _shotCount = 3;
+  PickedPhoto? _photo;
+  String? _error;
   bool _identifying = false;
-  final _notesController = TextEditingController();
 
-  void _addShot() {
-    if (_shotCount >= 5) return;
-    setState(() => _shotCount++);
+  Future<void> _pick() async {
+    setState(() => _error = null);
+    try {
+      final photo = await context.read<PhotoPicker>().pick();
+      if (!mounted || photo == null) return;
+      setState(() => _photo = photo);
+    } on PhotoRejected catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _photo = null;
+        _error = e.message;
+      });
+    }
   }
 
   Future<void> _identify() async {
-    setState(() => _identifying = true);
-    final repo = context.read<IdentifyRepository>();
-    final results = await repo.identify(shotCount: _shotCount, notes: _notesController.text);
-    if (!mounted) return;
-    setState(() => _identifying = false);
-    context.push('/results', extra: results);
-  }
-
-  @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
+    final photo = _photo;
+    if (photo == null) return;
+    setState(() {
+      _identifying = true;
+      _error = null;
+    });
+    try {
+      final outcome = await context.read<IdentifyRepository>().identify(photo: photo);
+      if (!mounted) return;
+      context.push('/results', extra: outcome);
+    } on ApiException catch (e) {
+      // A 401 also logs the user out (ApiClient.onUnauthorized); the router then leaves this screen.
+      if (!mounted) return;
+      setState(() => _error = identifyErrorMessage(e));
+    } finally {
+      if (mounted) setState(() => _identifying = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final photo = _photo;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -80,119 +111,83 @@ class _CaptureScreenState extends State<CaptureScreen> {
                       ),
                       const SizedBox(height: 6),
                       const Text(
-                        'Flower or fruit shots identify best. Capture up to 5 angles of the same plant.',
+                        'Flower or fruit shots identify best. Choose one clear photo of the plant '
+                        '(JPEG or PNG, at least 800×800).',
                         style: TextStyle(fontSize: 13, color: AppColors.inkFaint, height: 1.4),
                       ),
                       const SizedBox(height: 16),
-                      _Viewfinder(),
+                      Semantics(
+                        identifier: 'photo-preview',
+                        container: true,
+                        label: photo == null ? 'No photo chosen' : photo.name,
+                        child: AspectRatio(
+                          aspectRatio: 397 / 343,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: photo == null
+                                ? const SketchPlaceholder(
+                                    label: 'no photo yet\n[ choose one below ]', borderRadius: 10)
+                                : Image.memory(
+                                    photo.bytes,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                                  ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(height: 18),
                       Center(
-                        child: GestureDetector(
-                          key: const Key('shutterButton'),
-                          onTap: _addShot,
-                          child: Container(
-                            width: 68,
-                            height: 68,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.paperRaised,
-                              border: Border.all(color: AppColors.forest, width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppColors.ink.withValues(alpha: 0.18),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Container(
-                                width: 46,
-                                height: 46,
-                                decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.forest),
+                        child: Semantics(
+                          identifier: 'pick-photo',
+                          button: true,
+                          label: 'Choose photo',
+                          child: GestureDetector(
+                            key: const Key('pickPhotoButton'),
+                            onTap: _identifying ? null : _pick,
+                            child: Container(
+                              width: 68,
+                              height: 68,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.paperRaised,
+                                border: Border.all(color: AppColors.forest, width: 3),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.ink.withValues(alpha: 0.18),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.photo_library_outlined,
+                                    size: 28, color: AppColors.forest),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'This session',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkSoft),
-                          ),
-                          Text(
-                            '$_shotCount/5 photos',
-                            style: const TextStyle(fontSize: 13, color: AppColors.inkFaint),
-                          ),
-                        ],
                       ),
                       const SizedBox(height: 10),
-                      Row(
-                        children: List.generate(5, (i) {
-                          final filled = i < _shotCount;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: AppSpacing.md),
-                            child: Container(
-                              width: 58,
-                              height: 58,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: filled ? AppColors.forestSoft : null,
-                                border: Border.all(
-                                  color: AppColors.lineStrong,
-                                  width: filled ? 1 : 1.5,
-                                  style: filled ? BorderStyle.solid : BorderStyle.solid,
-                                ),
-                                borderRadius: BorderRadius.circular(7),
-                              ),
-                              child: filled
-                                  ? Text(
-                                      _organs[i % _organs.length],
-                                      style: const TextStyle(
-                                        fontFamily: 'monospace',
-                                        fontSize: 9,
-                                        color: AppColors.forest,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    )
-                                  : null,
-                            ),
-                          );
-                        }),
-                      ),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: const [
-                          Text('Notes', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkSoft)),
-                          Text('optional', style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _notesController,
-                        maxLines: 3,
-                        style: const TextStyle(fontSize: 13.5, color: AppColors.ink),
-                        decoration: InputDecoration(
-                          hintText: 'Where you found it, smell, soil, anything odd…',
-                          hintStyle: const TextStyle(color: AppColors.inkFaint),
-                          filled: true,
-                          fillColor: AppColors.paperRaised,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(9),
-                            borderSide: BorderSide(color: AppColors.lineStrong),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(9),
-                            borderSide: const BorderSide(color: AppColors.forest),
-                          ),
+                      Center(
+                        child: Text(
+                          photo == null ? 'Tap to choose a photo' : photo.name,
+                          style: const TextStyle(fontSize: 13, color: AppColors.inkFaint),
                         ),
                       ),
+                      if (_error != null) ...[
+                        const SizedBox(height: 18),
+                        Semantics(
+                          identifier: 'identify-error',
+                          liveRegion: true,
+                          container: true,
+                          label: _error,
+                          child: Text(
+                            _error!,
+                            key: const Key('identifyError'),
+                            style: const TextStyle(color: AppColors.terracotta, fontSize: 13.5),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -203,50 +198,24 @@ class _CaptureScreenState extends State<CaptureScreen> {
               padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, 0, AppSpacing.xxl, 26),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  key: const Key('identifyButton'),
-                  onPressed: _identifying ? null : _identify,
-                  child: _identifying
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.paper),
-                        )
-                      : const Text('Identify this plant'),
+                child: Semantics(
+                  identifier: 'identify-submit',
+                  child: ElevatedButton(
+                    key: const Key('identifyButton'),
+                    onPressed: (_photo == null || _identifying) ? null : _identify,
+                    child: _identifying
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.paper),
+                          )
+                        : const Text('Identify this plant'),
+                  ),
                 ),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _Viewfinder extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 397 / 343,
-      child: Stack(
-        children: [
-          Positioned.fill(child: SketchPlaceholder(label: 'live viewfinder\n[ camera preview ]', borderRadius: 10)),
-          Positioned(
-            top: 12,
-            right: 42,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.ink.withValues(alpha: 0.42),
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: const Text(
-                '⛶ Tap to expand',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.paper),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

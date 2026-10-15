@@ -4,14 +4,17 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme.dart';
 import '../../core/widgets/widgets.dart';
+import '../../data/api/identify_dto.dart';
 import '../../data/models/identification_result.dart';
 import '../../data/repositories/plants_repository.dart';
 
 /// Port of design/yvoty-ui/02-Results.dc.html.
 class ResultsScreen extends StatelessWidget {
-  const ResultsScreen({super.key, required this.candidates});
+  const ResultsScreen({super.key, required this.outcome});
 
-  final List<IdentificationResult> candidates;
+  final IdentifyOutcome outcome;
+
+  List<IdentificationResult> get candidates => outcome.results;
 
   @override
   Widget build(BuildContext context) {
@@ -24,41 +27,72 @@ class ResultsScreen extends StatelessWidget {
               backLabel: 'Retake',
               onBack: () => context.pop(),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.xl, AppSpacing.xxl, 0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                decoration: BoxDecoration(
-                  color: AppColors.goldSoft,
-                  border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Row(
-                  children: [
-                    Text('🌷', style: TextStyle(fontSize: 16)),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          style: TextStyle(fontSize: 12.5, color: AppColors.goldNoteText, height: 1.4),
-                          children: [
-                            TextSpan(text: 'We detected a '),
-                            TextSpan(text: 'flower', style: TextStyle(fontWeight: FontWeight.w700)),
-                            TextSpan(text: ' in photo 1 — great signal for identification.'),
-                          ],
-                        ),
+            if (outcome.imageUrl != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.xl, AppSpacing.xxl, 0),
+                child: Semantics(
+                  identifier: 'results-photo',
+                  container: true,
+                  label: 'Your photo',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      height: 150,
+                      width: double.infinity,
+                      child: Image.network(
+                        outcome.imageUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            const SketchPlaceholder(label: 'photo\nunavailable'),
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            if (outcome.predictedOrgan != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xxl, AppSpacing.xl, AppSpacing.xxl, 0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                  decoration: BoxDecoration(
+                    color: AppColors.goldSoft,
+                    border: Border.all(color: AppColors.gold.withValues(alpha: 0.4)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('🌷', style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            style: const TextStyle(
+                                fontSize: 12.5, color: AppColors.goldNoteText, height: 1.4),
+                            children: [
+                              const TextSpan(text: 'We detected a '),
+                              TextSpan(
+                                  text: outcome.predictedOrgan,
+                                  style: const TextStyle(fontWeight: FontWeight.w700)),
+                              const TextSpan(text: ' in your photo.'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: AppSpacing.md),
-                itemCount: candidates.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 0),
-                itemBuilder: (context, i) => _CandidateTile(candidate: candidates[i]),
+              child: Semantics(
+                identifier: 'results-list',
+                container: true,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.xxl, vertical: AppSpacing.md),
+                  itemCount: candidates.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 0),
+                  itemBuilder: (context, i) => _CandidateTile(candidate: candidates[i]),
+                ),
               ),
             ),
             Padding(
@@ -90,7 +124,10 @@ class _CandidateTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
+      identifier: 'result-${candidate.rank}',
+      container: true,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: candidate.isTop
           ? BoxDecoration(
@@ -134,14 +171,17 @@ class _CandidateTile extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(candidate.commonName, style: const TextStyle(fontSize: 13, color: AppColors.inkSoft)),
-                const SizedBox(height: 6),
+                if (candidate.commonName.isNotEmpty) ...[
+                  Text(candidate.commonName,
+                      style: const TextStyle(fontSize: 13, color: AppColors.inkSoft)),
+                  const SizedBox(height: 6),
+                ],
                 ScoreBar(value: candidate.score),
                 const SizedBox(height: 6),
                 Wrap(
                   spacing: 6,
                   children: [
-                    PillTag(candidate.family),
+                    if (candidate.family.isNotEmpty) PillTag(candidate.family),
                     if (candidate.isTop) const PillTag('Best match', variant: TagVariant.terracotta),
                   ],
                 ),
@@ -149,6 +189,7 @@ class _CandidateTile extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

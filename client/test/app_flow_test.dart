@@ -4,16 +4,24 @@
 // see https://github.com/flutter/flutter/issues for the tracking issue).
 // Verifies Diary -> Capture -> Results -> PlantDetail -> back -> Region Map,
 // including that the region map's CustomPainter actually renders shapes.
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:yvoty/data/models/picked_photo.dart';
+import 'package:yvoty/data/photo_picker.dart';
 import 'package:yvoty/main.dart';
 import 'support/test_auth.dart';
 import 'package:yvoty/features/region/province_painter.dart';
 
 void main() {
   testWidgets('full navigation flow across all 5 screens', (tester) async {
-    await tester.pumpWidget(YvotyApp(auth: await signedInAuth()));
+    await tester.pumpWidget(YvotyApp(
+      auth: await signedInAuth(),
+      photoPicker: FakePhotoPicker(
+          photo: PickedPhoto(name: 'leaf.png', bytes: Uint8List.fromList([1]))),
+    ));
     await tester.pumpAndSettle();
 
     // Diary: seeded plants + progress card visible.
@@ -26,13 +34,13 @@ void main() {
     await tester.tap(find.byKey(const Key('captureFab')));
     await tester.pumpAndSettle();
     expect(find.text('New Specimen'), findsOneWidget);
-    expect(find.text('3/5 photos'), findsOneWidget);
+    expect(find.text('Tap to choose a photo'), findsOneWidget);
 
-    // Shutter increments the shot count.
-    await tester.ensureVisible(find.byKey(const Key('shutterButton')));
-    await tester.tap(find.byKey(const Key('shutterButton')));
+    // Choosing a photo enables identify.
+    await tester.ensureVisible(find.byKey(const Key('pickPhotoButton')));
+    await tester.tap(find.byKey(const Key('pickPhotoButton')));
     await tester.pumpAndSettle();
-    expect(find.text('4/5 photos'), findsOneWidget);
+    expect(find.text('leaf.png'), findsOneWidget);
 
     // Capture -> Results.
     await tester.ensureVisible(find.byKey(const Key('identifyButton')));

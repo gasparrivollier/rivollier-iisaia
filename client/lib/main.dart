@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/routing.dart';
 import 'core/theme.dart';
 import 'data/api/api_client.dart';
+import 'data/photo_picker.dart';
 import 'data/repositories/auth_repository.dart';
 import 'data/repositories/identify_repository.dart';
 import 'data/repositories/plants_repository.dart';
@@ -41,10 +42,11 @@ Future<void> main() async {
 }
 
 class YvotyApp extends StatefulWidget {
-  const YvotyApp({super.key, required this.auth, this.api});
+  const YvotyApp({super.key, required this.auth, this.api, this.photoPicker});
 
   final AuthController auth;
   final ApiClient? api;
+  final PhotoPicker? photoPicker;
 
   @override
   State<YvotyApp> createState() => _YvotyAppState();
@@ -64,7 +66,12 @@ class _YvotyAppState extends State<YvotyApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthController>.value(value: widget.auth),
-        Provider<IdentifyRepository>(create: (_) => FakeIdentifyRepository()),
+        Provider<IdentifyRepository>(
+          create: (_) => widget.api == null
+              ? FakeIdentifyRepository()
+              : HttpIdentifyRepository(widget.api!, readToken: () => widget.auth.token),
+        ),
+        Provider<PhotoPicker>(create: (_) => widget.photoPicker ?? FilePickerPhotoPicker()),
         Provider<PlantsRepository>(create: (_) => FakePlantsRepository()),
         Provider<RegionRepository>(create: (_) => FakeRegionRepository()),
       ],

@@ -1,6 +1,6 @@
 import 'package:go_router/go_router.dart';
 
-import '../data/models/identification_result.dart';
+import '../data/api/identify_dto.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -28,10 +28,7 @@ GoRouter buildRouter(AuthController auth) => GoRouter(
         GoRoute(path: '/capture', builder: (context, state) => const CaptureScreen()),
         GoRoute(
           path: '/results',
-          builder: (context, state) {
-            final candidates = state.extra as List<IdentificationResult>;
-            return ResultsScreen(candidates: candidates);
-          },
+          builder: (context, state) => ResultsScreen(outcome: state.extra as IdentifyOutcome),
         ),
         GoRoute(
           path: '/plants/:id',
