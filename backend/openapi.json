@@ -24,6 +24,20 @@
         "title": "AuthResponse",
         "type": "object"
       },
+      "Body_identify_identify_post": {
+        "properties": {
+          "image": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "image"
+        ],
+        "title": "Body_identify_identify_post",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -35,6 +49,181 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IdentifyImageOut": {
+        "properties": {
+          "predicted_organ": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Organ"
+          },
+          "predicted_organ_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Organ Score"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "predicted_organ",
+          "predicted_organ_score"
+        ],
+        "title": "IdentifyImageOut",
+        "type": "object"
+      },
+      "IdentifyResponse": {
+        "properties": {
+          "best_match": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Best Match"
+          },
+          "identification_id": {
+            "title": "Identification Id",
+            "type": "integer"
+          },
+          "image": {
+            "$ref": "#/components/schemas/IdentifyImageOut"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "remaining_requests": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Remaining Requests"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/IdentifyResultOut"
+            },
+            "title": "Results",
+            "type": "array"
+          }
+        },
+        "required": [
+          "identification_id",
+          "project",
+          "best_match",
+          "remaining_requests",
+          "image",
+          "results"
+        ],
+        "title": "IdentifyResponse",
+        "type": "object"
+      },
+      "IdentifyResultOut": {
+        "properties": {
+          "common_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Common Names",
+            "type": "array"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "gbif_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gbif Id"
+          },
+          "genus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Genus"
+          },
+          "powo_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Powo Id"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "scientific_name": {
+            "title": "Scientific Name",
+            "type": "string"
+          },
+          "scientific_name_without_author": {
+            "title": "Scientific Name Without Author",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "rank",
+          "score",
+          "scientific_name",
+          "scientific_name_without_author",
+          "genus",
+          "family",
+          "common_names",
+          "gbif_id",
+          "powo_id"
+        ],
+        "title": "IdentifyResultOut",
         "type": "object"
       },
       "LoginRequest": {
@@ -291,6 +480,52 @@
         "summary": "Health",
         "tags": [
           "health"
+        ]
+      }
+    },
+    "/identify": {
+      "post": {
+        "operationId": "identify_identify_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_identify_identify_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentifyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Identify",
+        "tags": [
+          "identify"
         ]
       }
     }

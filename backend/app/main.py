@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth, health
+from app.routers import auth, health, identify
 
 
 def create_app() -> FastAPI:
@@ -14,9 +14,11 @@ def create_app() -> FastAPI:
         allow_origins=settings.cors_origin_list,
         allow_methods=["*"],
         allow_headers=["Authorization", "Content-Type"],
+        expose_headers=["Retry-After"],
     )
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(identify.router)
     return app
 
 
