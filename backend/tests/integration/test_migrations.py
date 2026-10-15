@@ -1,26 +1,16 @@
-from pathlib import Path
-
 import pytest
 from alembic import command
-from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 
+from tests.integration.alembic_helpers import alembic_cfg
+
 pytestmark = pytest.mark.integration
-
-BACKEND_DIR = Path(__file__).parents[2]
-
-
-def _cfg(url: str) -> Config:
-    cfg = Config(str(BACKEND_DIR / "alembic.ini"))
-    cfg.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
-    cfg.set_main_option("sqlalchemy.url", url.replace("%", "%%"))
-    return cfg
 
 
 @pytest.fixture
 def migrated(test_db_url):
-    cfg = _cfg(test_db_url)
+    cfg = alembic_cfg(test_db_url)
     command.downgrade(cfg, "base")
     command.upgrade(cfg, "head")
     engine = create_engine(test_db_url)
@@ -52,5 +42,7 @@ def test_created_at_defaults_to_now(migrated):
 
 
 def test_upgrade_head_twice_is_noop(migrated, test_db_url):
-    command.upgrade(_cfg(test_db_url), "head")  # second run on an up-to-date DB must not fail
+    command.upgrade(
+        alembic_cfg(test_db_url), "head"
+    )  # second run on an up-to-date DB must not fail
     assert "users" in inspect(migrated).get_table_names()
