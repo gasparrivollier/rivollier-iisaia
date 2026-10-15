@@ -6,10 +6,14 @@ import 'package:http/http.dart' as http;
 /// A failed call to the Yvoty backend. [statusCode] is the HTTP status, or 0 when
 /// the backend could not be reached (network error or timeout).
 class ApiException implements Exception {
-  ApiException(this.statusCode, this.message);
+  ApiException(this.statusCode, this.message, {this.fieldErrors = const {}});
 
   final int statusCode;
   final String message;
+
+  /// Per-field validation messages from a 422, keyed by the last `loc` element
+  /// (e.g. 'email', 'password', 'display_name').
+  final Map<String, String> fieldErrors;
 
   @override
   String toString() => 'ApiException($statusCode): $message';
@@ -55,7 +59,7 @@ class ApiClient {
       throw ApiException(0, 'Timed out after ${timeout.inSeconds}s');
     }
     if (res.statusCode < 200 || res.statusCode >= 300) {
-      throw ApiException(res.statusCode, _detail(res.body));
+      throw ApiException(res.statusCode, _detail(res.body), fieldErrors: _fieldErrors(res.body));
     }
     try {
       return jsonDecode(res.body) as Map<String, dynamic>;
@@ -67,6 +71,24 @@ class ApiClient {
   }
 
   static const _unexpected = 'Unexpected response from server';
+
+  static Map<String, String> _fieldErrors(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is! Map || decoded['detail'] is! List) return const {};
+      final out = <String, String>{};
+      for (final item in decoded['detail'] as List) {
+        if (item is! Map || item['loc'] is! List || item['msg'] is! String) continue;
+        final loc = item['loc'] as List;
+        if (loc.isEmpty || loc.last is! String) continue;
+        out.putIfAbsent(
+            loc.last as String, () => (item['msg'] as String).replaceFirst('Value error, ', ''));
+      }
+      return out;
+    } on FormatException {
+      return const {};
+    }
+  }
 
   static String _detail(String body) {
     try {

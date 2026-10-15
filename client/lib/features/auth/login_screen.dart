@@ -19,6 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   String? _error;
+  Map<String, String> _fieldErrors = const {};
   bool _busy = false;
 
   @override
@@ -34,15 +35,26 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _busy = true;
       _error = null;
+      _fieldErrors = const {};
     });
     try {
       // On success the router's redirect moves to the Diary.
       await auth.login(email: _email.text.trim(), password: _password.text);
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = authErrorMessage(e));
+      if (mounted) {
+        final r = splitAuthError(e, {'email', 'password'});
+        setState(() {
+          _error = r.general;
+          _fieldErrors = r.fields;
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _clearFieldError(String field) {
+    if (_fieldErrors.containsKey(field)) setState(() => _fieldErrors = {..._fieldErrors}..remove(field));
   }
 
   @override
@@ -61,6 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 identifier: 'login-email',
                 child: TextFormField(
                   key: const Key('loginEmail'),
+                  forceErrorText: _fieldErrors['email'],
+                  onChanged: (_) => _clearFieldError('email'),
                   controller: _email,
                   decoration: const InputDecoration(labelText: 'Email'),
                   keyboardType: TextInputType.emailAddress,
@@ -74,6 +88,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 identifier: 'login-password',
                 child: TextFormField(
                   key: const Key('loginPassword'),
+                  forceErrorText: _fieldErrors['password'],
+                  onChanged: (_) => _clearFieldError('password'),
                   controller: _password,
                   decoration: const InputDecoration(labelText: 'Password'),
                   obscureText: true,

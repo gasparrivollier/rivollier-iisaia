@@ -20,6 +20,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   String? _error;
+  Map<String, String> _fieldErrors = const {};
   bool _busy = false;
 
   @override
@@ -36,6 +37,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() {
       _busy = true;
       _error = null;
+      _fieldErrors = const {};
     });
     try {
       // On success the router's redirect moves to the Diary.
@@ -45,10 +47,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         displayName: _name.text.trim(),
       );
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = authErrorMessage(e));
+      if (mounted) {
+        final r = splitAuthError(e, {'display_name', 'email', 'password'});
+        setState(() {
+          _error = r.general;
+          _fieldErrors = r.fields;
+        });
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  void _clearFieldError(String field) {
+    if (_fieldErrors.containsKey(field)) setState(() => _fieldErrors = {..._fieldErrors}..remove(field));
   }
 
   @override
@@ -67,6 +79,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 identifier: 'register-display-name',
                 child: TextFormField(
                   key: const Key('registerDisplayName'),
+                  forceErrorText: _fieldErrors['display_name'],
+                  onChanged: (_) => _clearFieldError('display_name'),
                   controller: _name,
                   decoration: const InputDecoration(labelText: 'Name'),
                   autofillHints: const [AutofillHints.name],
@@ -79,6 +93,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 identifier: 'register-email',
                 child: TextFormField(
                   key: const Key('registerEmail'),
+                  forceErrorText: _fieldErrors['email'],
+                  onChanged: (_) => _clearFieldError('email'),
                   controller: _email,
                   decoration: const InputDecoration(labelText: 'Email'),
                   keyboardType: TextInputType.emailAddress,
@@ -92,6 +108,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 identifier: 'register-password',
                 child: TextFormField(
                   key: const Key('registerPassword'),
+                  forceErrorText: _fieldErrors['password'],
+                  onChanged: (_) => _clearFieldError('password'),
                   controller: _password,
                   decoration: const InputDecoration(
                     labelText: 'Password',

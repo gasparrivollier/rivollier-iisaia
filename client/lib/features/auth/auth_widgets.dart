@@ -17,7 +17,7 @@ String? validateEmail(String? value) {
 
 String? validateNewPassword(String? value) {
   final v = value ?? '';
-  if (v.length < kMinPasswordChars) return 'At least $kMinPasswordChars characters';
+  if (v.runes.length < kMinPasswordChars) return 'At least $kMinPasswordChars characters';
   if (utf8.encode(v).length > kMaxPasswordBytes) {
     return 'At most $kMaxPasswordBytes bytes (shorter, or fewer accented characters)';
   }
@@ -27,7 +27,7 @@ String? validateNewPassword(String? value) {
 String? validateDisplayName(String? value) {
   final v = value?.trim() ?? '';
   if (v.isEmpty) return 'Enter your name';
-  if (v.length > 100) return 'At most 100 characters';
+  if (v.runes.length > 100) return 'At most 100 characters';
   return null;
 }
 
@@ -38,6 +38,18 @@ String authErrorMessage(ApiException e) => switch (e.statusCode) {
       422 => 'Please check the fields and try again.',
       _ => 'Something went wrong (${e.statusCode}). Try again.',
     };
+
+/// Splits a 422 into messages for [known] form fields and a general fallback line
+/// (set when no field matched, or for any non-422 error).
+({Map<String, String> fields, String? general}) splitAuthError(
+    ApiException e, Set<String> known) {
+  final fields = {
+    for (final f in e.fieldErrors.entries)
+      if (known.contains(f.key)) f.key: f.value,
+  };
+  if (e.statusCode == 422 && fields.isNotEmpty) return (fields: fields, general: null);
+  return (fields: const {}, general: authErrorMessage(e));
+}
 
 /// Centered, narrow card layout shared by the login and register screens.
 class AuthScaffold extends StatelessWidget {

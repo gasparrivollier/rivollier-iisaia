@@ -105,4 +105,28 @@ void main() {
       throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 200)),
     );
   });
+
+  test('a 422 with a FastAPI list detail exposes per-field messages', () async {
+    final repo = _repo((req) async => http.Response(
+          jsonEncode({
+            'detail': [
+              {
+                'type': 'value_error',
+                'loc': ['body', 'email'],
+                'msg': 'value is not a valid email address: bad dot',
+                'input': 'ana.@example.com',
+              },
+            ],
+          }),
+          422,
+        ));
+
+    await expectLater(
+      repo.register(email: 'ana.@example.com', password: 'pw-12345', displayName: 'Ana'),
+      throwsA(isA<ApiException>()
+          .having((e) => e.statusCode, 'statusCode', 422)
+          .having((e) => e.fieldErrors, 'fieldErrors',
+              {'email': 'value is not a valid email address: bad dot'})),
+    );
+  });
 }

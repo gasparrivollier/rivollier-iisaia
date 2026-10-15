@@ -3,12 +3,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:yvoty/data/repositories/auth_repository.dart';
 import 'package:yvoty/main.dart';
 
+import 'package:yvoty/data/api/api_client.dart';
+import 'package:yvoty/data/api/auth_dto.dart';
+import 'package:yvoty/features/auth/auth_widgets.dart';
+
 import 'support/test_auth.dart';
 
 Future<void> _tap(WidgetTester tester, String key) async {
   await tester.ensureVisible(find.byKey(Key(key)));
   await tester.tap(find.byKey(Key(key)));
   await tester.pumpAndSettle();
+}
+
+class _Rejects422 extends FakeAuthRepository {
+  @override
+  Future<AuthSession> register(
+          {required String email, required String password, required String displayName}) =>
+      throw ApiException(422, 'invalid', fieldErrors: {'email': 'value is not a valid email address'});
 }
 
 void main() {
@@ -92,5 +103,32 @@ void main() {
     await tester.enterText(find.byKey(const Key('registerPassword')), 'short');
     await _tap(tester, 'registerSubmit');
     expect(find.text('At least 8 characters'), findsOneWidget);
+  });
+
+  testWidgets('server 422 shows the field message under the email field', (tester) async {
+    final auth = await signedOutAuth(repository: _Rejects422());
+    await tester.pumpWidget(YvotyApp(auth: auth));
+    await tester.pumpAndSettle();
+
+    await _tap(tester, 'goToRegister');
+    await tester.enterText(find.byKey(const Key('registerDisplayName')), 'Ana');
+    await tester.enterText(find.byKey(const Key('registerEmail')), 'ana.@example.com');
+    await tester.enterText(find.byKey(const Key('registerPassword')), 'correct-horse-42');
+    await _tap(tester, 'registerSubmit');
+
+    expect(find.text('value is not a valid email address'), findsOneWidget);
+    expect(find.text('Please check the fields and try again.'), findsNothing);
+    expect(find.byKey(const Key('registerSubmit')), findsOneWidget);
+    expect(auth.isSignedIn, isFalse);
+
+    await tester.enterText(find.byKey(const Key('registerEmail')), 'ana@example.com');
+    await tester.pump();
+    expect(find.text('value is not a valid email address'), findsNothing);
+  });
+
+  test('password length counts code points, not UTF-16 units', () {
+    expect(validateNewPassword('😀😀😀😀'), 'At least 8 characters');
+    expect(validateNewPassword('😀' * 8), isNull);
+    expect(validateDisplayName('😀' * 100), isNull);
   });
 }
