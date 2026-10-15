@@ -11,10 +11,12 @@ TEST_DB = "yvoty_test"
 
 
 @pytest.fixture(autouse=True)
-def _isolate_plantnet_settings(monkeypatch):
-    """Never let a real key/URL from ../.env or the shell leak into backend tests."""
+def _isolate_settings(monkeypatch):
+    """Never let a real key/URL/secret from ../.env or the shell leak into backend tests."""
     monkeypatch.setenv("PLANTNET_BASE_URL", "http://localhost:8100")
     monkeypatch.setenv("PLANTNET_API_KEY", "")
+    monkeypatch.setenv("JWT_SECRET", "test-secret-0123456789abcdef0123456789")
+    monkeypatch.setenv("CORS_ORIGINS", "http://127.0.0.1:8080,http://localhost:8080")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

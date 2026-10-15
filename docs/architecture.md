@@ -92,7 +92,7 @@ Supports the "collection progress by province" screen (`client/lib/features/regi
 
 ## Auth
 
-Simple email+password with FastAPI-issued JWT — no managed auth vendor (Auth0/Firebase/Supabase Auth), since that's extra integration surface a custom backend doesn't need. `passlib` (bcrypt) for hashing, `pyjwt`/`python-jose` for tokens, `POST /auth/register`, `POST /auth/login`, and a `get_current_user` FastAPI dependency guarding protected routes. No email verification / password reset / social login for v1 — explicit simplification, not an oversight.
+Simple email+password with FastAPI-issued JWT — no managed auth vendor (Auth0/Firebase/Supabase Auth), since that's extra integration surface a custom backend doesn't need. `bcrypt` (used directly; passlib is unmaintained) for hashing, `pyjwt` (HS256) for tokens, `POST /auth/register`, `POST /auth/login`, and a `get_current_user` FastAPI dependency guarding protected routes. No email verification / password reset / social login for v1 — explicit simplification, not an oversight. Implemented in slice 0.2: register also returns a token, `GET /auth/me` is the first protected route, tokens have a 24h TTL with no refresh, and logout is client-side.
 
 ## Image storage
 

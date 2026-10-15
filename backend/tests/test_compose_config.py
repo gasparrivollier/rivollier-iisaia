@@ -24,3 +24,9 @@ def test_all_images_are_fully_qualified():
         if "image" in svc:
             first = svc["image"].split("/")[0]
             assert "." in first, f"{name}: podman needs a registry-qualified image name"
+
+
+def test_backend_receives_auth_settings():
+    env = _services()["backend"]["environment"]
+    assert env["JWT_SECRET"].startswith("${JWT_SECRET:-")
+    assert "http://127.0.0.1:8080" in env["CORS_ORIGINS"]
