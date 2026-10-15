@@ -57,8 +57,16 @@ class ApiClient {
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw ApiException(res.statusCode, _detail(res.body));
     }
-    return jsonDecode(res.body) as Map<String, dynamic>;
+    try {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    } on FormatException {
+      throw ApiException(res.statusCode, _unexpected);
+    } on TypeError {
+      throw ApiException(res.statusCode, _unexpected);
+    }
   }
+
+  static const _unexpected = 'Unexpected response from server';
 
   static String _detail(String body) {
     try {

@@ -11,6 +11,12 @@ class _OfflineAuthRepository extends FakeAuthRepository {
   Future<UserDto> me(String token) async => throw ApiException(0, 'offline');
 }
 
+class _GarbledAuthRepository extends FakeAuthRepository {
+  @override
+  Future<UserDto> me(String token) async =>
+      throw ApiException(200, 'Unexpected response from server');
+}
+
 Future<(AuthController, TokenStore)> _controller(
   AuthRepository repo, {
   Map<String, Object> stored = const {},
@@ -80,6 +86,13 @@ void main() {
       auth.login(email: 'nobody@example.com', password: 'pw-12345'),
       throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 401)),
     );
+    expect(auth.isSignedIn, isFalse);
+  });
+
+  test('restore survives a malformed backend response', () async {
+    final (auth, _) =
+        await _controller(_GarbledAuthRepository(), stored: {TokenStore.key: 't'});
+    await auth.restore();
     expect(auth.isSignedIn, isFalse);
   });
 }

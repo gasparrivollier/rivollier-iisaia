@@ -80,4 +80,29 @@ void main() {
       throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 0)),
     );
   });
+
+  test('a 200 with a non-JSON body becomes ApiException', () async {
+    final repo = _repo((_) async => http.Response('<html>portal</html>', 200));
+    await expectLater(
+      repo.me('t'),
+      throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 200)),
+    );
+  });
+
+  test('a 200 with a non-object JSON body becomes ApiException', () async {
+    final repo = _repo((_) async => http.Response('[1,2]', 200));
+    await expectLater(
+      repo.me('t'),
+      throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 200)),
+    );
+  });
+
+  test('a 200 with the wrong shape becomes ApiException', () async {
+    final repo = _repo((_) async => http.Response(
+        jsonEncode({'token_type': 'bearer', 'user': _authJson['user']}), 200));
+    await expectLater(
+      repo.login(email: 'a@example.com', password: 'x'),
+      throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 200)),
+    );
+  });
 }

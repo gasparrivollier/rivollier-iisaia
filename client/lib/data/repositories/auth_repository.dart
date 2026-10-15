@@ -17,26 +17,40 @@ class HttpAuthRepository implements AuthRepository {
 
   final ApiClient _api;
 
+  /// Maps a 2xx body with the wrong shape (missing or mistyped field) to ApiException.
+  static T _parse<T>(Map<String, dynamic> json, T Function(Map<String, dynamic>) fromJson) {
+    try {
+      return fromJson(json);
+    } on TypeError {
+      throw ApiException(200, 'Unexpected response from server');
+    }
+  }
+
   @override
   Future<AuthSession> register({
     required String email,
     required String password,
     required String displayName,
   }) async =>
-      AuthSession.fromJson(await _api.postJson('/auth/register', {
-        'email': email,
-        'password': password,
-        'display_name': displayName,
-      }));
+      _parse(
+        await _api.postJson('/auth/register', {
+          'email': email,
+          'password': password,
+          'display_name': displayName,
+        }),
+        AuthSession.fromJson,
+      );
 
   @override
   Future<AuthSession> login({required String email, required String password}) async =>
-      AuthSession.fromJson(
-          await _api.postJson('/auth/login', {'email': email, 'password': password}));
+      _parse(
+        await _api.postJson('/auth/login', {'email': email, 'password': password}),
+        AuthSession.fromJson,
+      );
 
   @override
   Future<UserDto> me(String token) async =>
-      UserDto.fromJson(await _api.getJson('/auth/me', token: token));
+      _parse(await _api.getJson('/auth/me', token: token), UserDto.fromJson);
 }
 
 /// In-memory double for widget tests; mirrors the backend's 401/409 behaviour.
