@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # Defaults to fake-plantnet; the real API (https://my-api.plantnet.org) must be opted in
     # explicitly.
     plantnet_base_url: str = "http://localhost:8100"
+    plantnet_project: str = "all"
     s3_endpoint_url: str = "http://localhost:9000"
     s3_access_key: str = "yvoty"
     s3_secret_key: str = "yvoty-secret"
