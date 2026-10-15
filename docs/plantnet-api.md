@@ -70,6 +70,8 @@ Source docs browsed: getting-started (introduction, pro-plan, faq), api (openapi
 - `preferedReferential` appears at the top level of the response — also not covered in the official docs; seen holding a taxonomic backbone identifier in testing, not yet explored further.
 - A full real response (5-image multipart request, `project=all`) is saved at `docs/examples/plantnet-identify-response.json` for reference — generated via `scripts/test_plantnet.py --save-raw`.
 
+**Yvoty's usage**: the backend repeats the `images` and `organs` multipart fields in upload order and maps `predictedOrgans[i]` to photo *i* by position; if fewer predictions than photos come back the rest are stored as NULL. Total request size is capped at 50 MB on our side.
+
 **Rejection behavior**: non-plant images → `404 Species not found`. Pass `no-reject=true` to force plant predictions anyway (still 404s if literally no plant-shaped signal at any confidence).
 
 ## 3. Other identification endpoints

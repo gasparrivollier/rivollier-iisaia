@@ -107,7 +107,7 @@ Simple email+password with FastAPI-issued JWT — no managed auth vendor (Auth0/
 - **0.1 Scaffold** - `backend/` (FastAPI, `uv`, health check, DB connection, initial `users` migration), `compose.yaml` (Postgres + MinIO via podman), Flutter Web served locally, Playwright project, and a smoke test that loads the app and sees the Diary.
 - **0.2 Auth** - backend register/login/JWT; Flutter login/register screens, browser token storage, protected route rejecting bad tokens.
 - **0.3 Single-photo identify (done)** - `POST /identify` calls Pl@ntNet first (so its failures leave no orphan objects), then stores the photo in MinIO and persists `identifications`/`identification_images`/`identification_results`; Flutter picker + results display. Smallest slice proving the whole chain.
-- **0.4 Multi-shot + organ tagging** - up to 5 images, organ tags, client + server validation, `predictedOrgans` feedback in the UI.
+- **0.4 Multi-shot + organ tagging (done)** - up to 5 images, organ tags, client + server validation, `predictedOrgans` feedback in the UI. Predicted organs are mapped to photos by position; a request is capped at 50 MB in total (Pl@ntNet's limit).
 - **0.5 Save to garden + list** - `plants`/`garden_items`, `POST/GET /garden`, Diary shows real saved plants. Fakes replaced by real repositories and kept as test doubles.
 
 **Later phases**

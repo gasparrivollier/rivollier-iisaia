@@ -18,6 +18,7 @@ Snapshot as of 2026-10-14. Companion to `docs/architecture.md` (decisions + phas
 | Repositories | `FakeIdentifyRepository`, `FakePlantsRepository`, `FakeRegionRepository` behind interfaces |
 | Auth | Register/login/me endpoints (JWT), login/register screens, route guard, token in browser storage (slice 0.2) |
 | Single-photo identify | POST /identify (validate → Pl@ntNet → MinIO → Postgres), file picker + results from the API, global 401 logout (slice 0.3) |
+| Multi-shot + organs | Up to 5 photos per identification with organ tags, set validation on both sides, per-photo predicted organs stored, add/tag/remove UI (slice 0.4) |
 | Web MVP scaffold | backend/ (/health, users migration), compose stack, fake-plantnet, Playwright smoke test (slice 0.1) |
 
 **Data / research**
@@ -39,7 +40,7 @@ Web only (Flutter Web + FastAPI + Postgres + MinIO), with **Playwright** e2e tes
 | 0.4 Multi-shot + organs | Up to 5 photos, organ tags, validation, `predictedOrgans` | Invalid sets rejected client + server; organ feedback shown |
 | 0.5 Save to garden | `plants`/`garden_items`, `POST/GET /garden`, real Diary | Save a plant, reload, still in Diary; fakes kept as test doubles |
 
-Status: slices 0.1–0.3 done; next: slice 0.4 (multi-shot + organs) plan.
+Status: slices 0.1–0.4 done; next: slice 0.5 (save to garden) plan.
 
 ### Later phases
 
