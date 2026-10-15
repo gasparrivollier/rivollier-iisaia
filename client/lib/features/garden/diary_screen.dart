@@ -7,6 +7,7 @@ import '../../core/widgets/widgets.dart';
 import '../../data/models/plant.dart';
 import '../../data/repositories/plants_repository.dart';
 import '../../data/repositories/region_repository.dart';
+import '../auth/auth_controller.dart';
 
 /// Port of design/yvoty-ui/04-Diary.dc.html — the app's home/landing screen.
 class DiaryScreen extends StatelessWidget {
@@ -102,7 +103,21 @@ class _Header extends StatelessWidget {
               ),
             ],
           ),
-          const QuotaPill(label: '481 ids left'),
+          Row(
+            children: [
+              const QuotaPill(label: '481 ids left'),
+              Semantics(
+                identifier: 'logout',
+                child: IconButton(
+                  key: const Key('logoutButton'),
+                  tooltip: 'Sign out',
+                  icon: const Icon(Icons.logout, size: 20),
+                  color: AppColors.inkSoft,
+                  onPressed: () => context.read<AuthController>().logout(),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

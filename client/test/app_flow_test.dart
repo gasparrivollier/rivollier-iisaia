@@ -8,11 +8,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:yvoty/main.dart';
+import 'support/test_auth.dart';
 import 'package:yvoty/features/region/province_painter.dart';
 
 void main() {
   testWidgets('full navigation flow across all 5 screens', (tester) async {
-    await tester.pumpWidget(const YvotyApp());
+    await tester.pumpWidget(YvotyApp(auth: await signedInAuth()));
     await tester.pumpAndSettle();
 
     // Diary: seeded plants + progress card visible.
