@@ -26,14 +26,25 @@
       },
       "Body_identify_identify_post": {
         "properties": {
-          "image": {
-            "contentMediaType": "application/octet-stream",
-            "title": "Image",
-            "type": "string"
+          "images": {
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
+            "title": "Images",
+            "type": "array"
+          },
+          "organs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Organs",
+            "type": "array"
           }
         },
         "required": [
-          "image"
+          "images",
+          "organs"
         ],
         "title": "Body_identify_identify_post",
         "type": "object"
@@ -53,6 +64,10 @@
       },
       "IdentifyImageOut": {
         "properties": {
+          "organ": {
+            "title": "Organ",
+            "type": "string"
+          },
           "predicted_organ": {
             "anyOf": [
               {
@@ -75,6 +90,10 @@
             ],
             "title": "Predicted Organ Score"
           },
+          "sort_order": {
+            "title": "Sort Order",
+            "type": "integer"
+          },
           "url": {
             "title": "Url",
             "type": "string"
@@ -82,8 +101,10 @@
         },
         "required": [
           "url",
+          "organ",
           "predicted_organ",
-          "predicted_organ_score"
+          "predicted_organ_score",
+          "sort_order"
         ],
         "title": "IdentifyImageOut",
         "type": "object"
@@ -105,8 +126,12 @@
             "title": "Identification Id",
             "type": "integer"
           },
-          "image": {
-            "$ref": "#/components/schemas/IdentifyImageOut"
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/IdentifyImageOut"
+            },
+            "title": "Images",
+            "type": "array"
           },
           "project": {
             "title": "Project",
@@ -136,7 +161,7 @@
           "project",
           "best_match",
           "remaining_requests",
-          "image",
+          "images",
           "results"
         ],
         "title": "IdentifyResponse",

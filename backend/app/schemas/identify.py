@@ -3,8 +3,10 @@ from pydantic import BaseModel
 
 class IdentifyImageOut(BaseModel):
     url: str
+    organ: str
     predicted_organ: str | None
     predicted_organ_score: float | None
+    sort_order: int
 
 
 class IdentifyResultOut(BaseModel):
@@ -24,5 +26,5 @@ class IdentifyResponse(BaseModel):
     project: str
     best_match: str | None
     remaining_requests: int | None
-    image: IdentifyImageOut
+    images: list[IdentifyImageOut]
     results: list[IdentifyResultOut]

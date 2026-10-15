@@ -6,6 +6,7 @@ import pytest
 import respx
 
 from app.services.plantnet_client import (
+    ImagePart,
     PlantnetClient,
     PlantnetNoPlant,
     PlantnetRateLimited,
@@ -26,23 +27,33 @@ def _client() -> PlantnetClient:
     return PlantnetClient(BASE, KEY, timeout=2.0)
 
 
-def _identify(client: PlantnetClient | None = None):
-    return (client or _client()).identify(
-        project="all", filename="photo.png", content=b"PNGDATA", content_type="image/png"
-    )
+def _parts(n: int = 1) -> list[ImagePart]:
+    organs = ["flower", "leaf", "auto", "fruit", "bark"]
+    return [
+        ImagePart(f"photo{i + 1}.png", f"PNGDATA{i + 1}".encode(), "image/png", organs[i])
+        for i in range(n)
+    ]
+
+
+def _identify(client: PlantnetClient | None = None, n: int = 1):
+    return (client or _client()).identify(project="all", images=_parts(n))
 
 
 @respx.mock
-def test_identify_posts_multipart_with_api_key_and_parses_the_response():
+def test_identify_posts_one_file_and_one_organ_per_image_in_order():
     route = respx.post(URL).mock(return_value=httpx.Response(200, json=RECORDED))
-    result = _identify()
+    result = _identify(n=3)
 
     req = route.calls.last.request
     assert req.url.params["api-key"] == KEY
     body = req.content
-    assert b'name="images"; filename="photo.png"' in body
-    assert b"PNGDATA" in body
-    assert b'name="organs"' in body and b"auto" in body
+    for i in (1, 2, 3):
+        assert f'name="images"; filename="photo{i}.png"'.encode() in body
+        assert f"PNGDATA{i}".encode() in body
+    assert body.count(b'name="organs"') == 3
+    # organs travel in the same order as the files
+    organ_values = [body.index(o) for o in (b"flower", b"leaf", b"auto")]
+    assert organ_values == sorted(organ_values)
 
     assert len(result.results) == 10
     top = result.results[0]
@@ -52,7 +63,7 @@ def test_identify_posts_multipart_with_api_key_and_parses_the_response():
     assert top.gbif.id == "5421335"
     assert result.version == "2026-03-20 (7.5)"
     assert result.remainingIdentificationRequests == 497
-    assert result.predictedOrgans[0].organ == "flower"
+    assert [p.organ for p in result.predictedOrgans[:3]] == ["flower", "habit", "flower"]
 
 
 @respx.mock

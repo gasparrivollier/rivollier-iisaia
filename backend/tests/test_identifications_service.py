@@ -1,23 +1,33 @@
 import pytest
 
-from app.services.identifications import persist_identification
+from app.services.identifications import StoredImage, persist_identification
 from app.services.plantnet_client import PlantnetResponse
 from tests.fakes import RECORDED, RecordingSession
 
 
-def _response() -> PlantnetResponse:
-    return PlantnetResponse.model_validate(RECORDED)
+def _response(**overrides) -> PlantnetResponse:
+    return PlantnetResponse.model_validate({**RECORDED, **overrides})
 
 
-def test_persists_one_image_and_every_ranked_result():
-    db = RecordingSession()
-    ident = persist_identification(
+def _persist(db, images, response=None):
+    return persist_identification(
         db,
         user_id=3,
         project="all",
-        response=_response(),
-        image_key="identifications/3/a.png",
-        organ="auto",
+        response=response or _response(),
+        images=images,
+    )
+
+
+def test_persists_each_image_with_its_organ_and_positional_prediction():
+    db = RecordingSession()
+    ident = _persist(
+        db,
+        [
+            StoredImage("identifications/3/a.png", "flower"),
+            StoredImage("identifications/3/b.jpg", "leaf"),
+            StoredImage("identifications/3/c.png", "auto"),
+        ],
     )
     assert db.added == [ident] and db.commits == 1
     assert (ident.user_id, ident.project, ident.id) == (3, "all", 7)
@@ -25,13 +35,17 @@ def test_persists_one_image_and_every_ranked_result():
     assert ident.remaining_requests_at_call == 497
     assert ident.plantnet_version == "2026-03-20 (7.5)"
 
-    [image] = ident.images
-    assert (image.storage_key, image.organ, image.sort_order) == (
-        "identifications/3/a.png",
-        "auto",
-        0,
-    )
-    assert (image.predicted_organ, image.predicted_organ_score) == ("flower", 0.77573)
+    assert [(i.storage_key, i.organ, i.sort_order) for i in ident.images] == [
+        ("identifications/3/a.png", "flower", 0),
+        ("identifications/3/b.jpg", "leaf", 1),
+        ("identifications/3/c.png", "auto", 2),
+    ]
+    # Recorded predictions are flower 0.77573, habit 0.40353, flower 0.82788 for the first three.
+    assert [(i.predicted_organ, i.predicted_organ_score) for i in ident.images] == [
+        ("flower", 0.77573),
+        ("habit", 0.40353),
+        ("flower", 0.82788),
+    ]
 
     assert [r.rank for r in ident.results] == list(range(1, 11))
     top = ident.results[0]
@@ -41,6 +55,17 @@ def test_persists_one_image_and_every_ranked_result():
     assert (top.genus, top.family) == ("Murraya", "Rutaceae")
     assert top.common_names == ["Orange Jasmine", "Orange jessamine", "Mock orange"]
     assert (top.gbif_id, top.powo_id) == ("5421335", "774441-1")
+
+
+def test_fewer_predictions_than_photos_leaves_the_rest_null():
+    resp = _response(predictedOrgans=[{"organ": "leaf", "score": 0.9}])
+    ident = _persist(
+        RecordingSession(),
+        [StoredImage("k1", "auto"), StoredImage("k2", "auto"), StoredImage("k3", "auto")],
+        resp,
+    )
+    assert [i.predicted_organ for i in ident.images] == ["leaf", None, None]
+    assert [i.predicted_organ_score for i in ident.images] == [0.9, None, None]
 
 
 def test_tolerates_missing_optional_fields():
@@ -57,9 +82,7 @@ def test_tolerates_missing_optional_fields():
             ]
         }
     )
-    ident = persist_identification(
-        RecordingSession(), user_id=1, project="all", response=resp, image_key="k", organ="auto"
-    )
+    ident = _persist(RecordingSession(), [StoredImage("k", "auto")], resp)
     r = ident.results[0]
     assert (r.genus, r.family, r.gbif_id, r.powo_id, r.common_names) == (
         None,
@@ -75,7 +98,5 @@ def test_tolerates_missing_optional_fields():
 def test_rolls_back_and_reraises_when_commit_fails():
     db = RecordingSession(fail_on_commit=RuntimeError("db down"))
     with pytest.raises(RuntimeError):
-        persist_identification(
-            db, user_id=1, project="all", response=_response(), image_key="k", organ="auto"
-        )
+        _persist(db, [StoredImage("k", "auto")])
     assert db.rollbacks == 1 and db.commits == 0

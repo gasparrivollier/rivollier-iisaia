@@ -4,6 +4,8 @@ The key travels in the query string, so exception messages here are fixed string
 original httpx error (whose text can include the URL) is suppressed with `from None`.
 """
 
+from dataclasses import dataclass
+
 import httpx
 from fastapi import Depends
 from pydantic import BaseModel, ValidationError
@@ -65,27 +67,27 @@ class PlantnetResponse(BaseModel):
     remainingIdentificationRequests: int | None = None
 
 
+@dataclass(frozen=True)
+class ImagePart:
+    filename: str
+    content: bytes
+    content_type: str
+    organ: str
+
+
 class PlantnetClient:
     def __init__(self, base_url: str, api_key: str, timeout: float = 30.0):
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._timeout = timeout
 
-    def identify(
-        self,
-        *,
-        project: str,
-        filename: str,
-        content: bytes,
-        content_type: str,
-        organ: str = "auto",
-    ) -> PlantnetResponse:
+    def identify(self, *, project: str, images: list[ImagePart]) -> PlantnetResponse:
         try:
             res = httpx.post(
                 f"{self._base_url}/v2/identify/{project}",
                 params={"api-key": self._api_key},
-                files={"images": (filename, content, content_type)},
-                data={"organs": organ},
+                files=[("images", (i.filename, i.content, i.content_type)) for i in images],
+                data={"organs": [i.organ for i in images]},
                 timeout=self._timeout,
             )
         except httpx.HTTPError:

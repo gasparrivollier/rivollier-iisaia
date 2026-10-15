@@ -24,12 +24,15 @@ class FakePlantnet:
 
 
 class FakeStorage:
-    def __init__(self, error: Exception | None = None):
+    def __init__(self, error: Exception | None = None, fail_after: int | None = None):
         self.error = error
+        self.fail_after = fail_after
         self.objects: dict[str, tuple[bytes, str]] = {}
 
     def put(self, key: str, data: bytes, content_type: str) -> None:
-        if self.error is not None:
+        if self.error is not None and (
+            self.fail_after is None or len(self.objects) >= self.fail_after
+        ):
             raise self.error
         self.objects[key] = (data, content_type)
 

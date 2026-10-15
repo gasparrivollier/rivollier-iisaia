@@ -35,10 +35,13 @@ def fakes(api):
     return plantnet, storage
 
 
-def _identify(api, token, data=None):
+def _identify(api, token, blobs=None, organs=None):
+    blobs = blobs or [png_bytes()]
+    organs = organs or ["auto"] * len(blobs)
     return api.post(
         "/identify",
-        files={"image": ("p.png", data or png_bytes(), "image/png")},
+        files=[("images", (f"p{i}.png", b, "image/png")) for i, b in enumerate(blobs)],
+        data={"organs": organs},
         headers={"Authorization": f"Bearer {token}"},
     )
 
@@ -79,7 +82,7 @@ def test_failed_identify_writes_no_rows(api, migrated_url, fakes):
 
 
 def test_invalid_image_writes_no_rows(api, migrated_url, fakes):
-    assert _identify(api, _token(api), data=png_bytes(100, 100)).status_code == 422
+    assert _identify(api, _token(api), blobs=[png_bytes(100, 100)]).status_code == 422
     assert _counts(migrated_url)["identifications"] == 0
 
 
@@ -90,3 +93,43 @@ def test_user_deletion_cascades_to_identifications(api, migrated_url, fakes):
         conn.execute(text("DELETE FROM users"))
     engine.dispose()
     assert _counts(migrated_url)["identification_results"] == 0
+
+
+def test_three_photos_write_three_image_rows_in_order(api, migrated_url, fakes):
+    res = _identify(
+        api,
+        _token(api),
+        blobs=[png_bytes(), png_bytes(900, 900), png_bytes(1000, 1000)],
+        organs=["flower", "leaf", "auto"],
+    )
+    assert res.status_code == 200
+    assert [i["organ"] for i in res.json()["images"]] == ["flower", "leaf", "auto"]
+    engine = create_engine(migrated_url)
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT sort_order, organ, predicted_organ FROM identification_images "
+                "ORDER BY sort_order"
+            )
+        ).all()
+    engine.dispose()
+    assert [tuple(r) for r in rows] == [
+        (0, "flower", "flower"),
+        (1, "leaf", "habit"),
+        (2, "auto", "flower"),
+    ]
+    assert _counts(migrated_url) == {
+        "identifications": 1,
+        "identification_images": 3,
+        "identification_results": 10,
+    }
+
+
+def test_second_upload_failing_writes_no_rows(api, migrated_url, fakes):
+    from app.services.storage import StorageError
+
+    _, storage = fakes
+    storage.error, storage.fail_after = StorageError("x"), 1
+    res = _identify(api, _token(api), blobs=[png_bytes(), png_bytes()])
+    assert res.status_code == 502
+    assert _counts(migrated_url)["identifications"] == 0

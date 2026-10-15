@@ -1,7 +1,15 @@
+from dataclasses import dataclass
+
 from sqlalchemy.orm import Session
 
 from app.models import Identification, IdentificationImage, IdentificationResult
 from app.services.plantnet_client import PlantnetResponse
+
+
+@dataclass(frozen=True)
+class StoredImage:
+    storage_key: str
+    organ: str
 
 
 def persist_identification(
@@ -10,11 +18,13 @@ def persist_identification(
     user_id: int,
     project: str,
     response: PlantnetResponse,
-    image_key: str,
-    organ: str,
+    images: list[StoredImage],
 ) -> Identification:
-    """Writes the identification, its image and every ranked candidate in one transaction."""
-    predicted = response.predictedOrgans[0] if response.predictedOrgans else None
+    """Writes the identification, its images and every ranked candidate in one transaction.
+
+    Pl@ntNet returns one predicted organ per submitted photo, in upload order, so photo *i*
+    takes prediction *i*; if fewer come back the remaining photos get NULL.
+    """
     ident = Identification(
         user_id=user_id,
         project=project,
@@ -22,15 +32,19 @@ def persist_identification(
         remaining_requests_at_call=response.remainingIdentificationRequests,
         plantnet_version=response.version,
     )
-    ident.images.append(
-        IdentificationImage(
-            storage_key=image_key,
-            organ=organ,
-            predicted_organ=predicted.organ if predicted else None,
-            predicted_organ_score=predicted.score if predicted else None,
-            sort_order=0,
+    for index, stored in enumerate(images):
+        predicted = (
+            response.predictedOrgans[index] if index < len(response.predictedOrgans) else None
         )
-    )
+        ident.images.append(
+            IdentificationImage(
+                storage_key=stored.storage_key,
+                organ=stored.organ,
+                predicted_organ=predicted.organ if predicted else None,
+                predicted_organ_score=predicted.score if predicted else None,
+                sort_order=index,
+            )
+        )
     for rank, candidate in enumerate(response.results, start=1):
         species = candidate.species
         ident.results.append(
