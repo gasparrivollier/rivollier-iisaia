@@ -25,3 +25,13 @@ export function countRows(
     ),
   );
 }
+
+/** `organ:predicted` per photo of the user's latest identification, in upload order. */
+export function imageOrgans(email: string): string {
+  return sql(
+    `SELECT string_agg(ii.organ || ':' || coalesce(ii.predicted_organ, ''), ',' ORDER BY ii.sort_order) ` +
+      `FROM identification_images ii JOIN identifications i ON i.id = ii.identification_id ` +
+      `JOIN users u ON u.id = i.user_id WHERE u.email = '${email}' ` +
+      `AND i.id = (SELECT max(i2.id) FROM identifications i2 WHERE i2.user_id = u.id)`,
+  );
+}
