@@ -30,3 +30,9 @@ def test_backend_receives_auth_settings():
     env = _services()["backend"]["environment"]
     assert env["JWT_SECRET"].startswith("${JWT_SECRET:-")
     assert "http://127.0.0.1:8080" in env["CORS_ORIGINS"]
+
+
+def test_backend_receives_identify_settings():
+    env = _services()["backend"]["environment"]
+    assert env["S3_PUBLIC_URL"] == "${S3_PUBLIC_URL:-http://127.0.0.1:9000}"
+    assert env["PLANTNET_PROJECT"] == "${PLANTNET_PROJECT:-all}"

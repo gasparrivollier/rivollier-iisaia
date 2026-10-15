@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     s3_access_key: str = "yvoty"
     s3_secret_key: str = "yvoty-secret"
     s3_bucket: str = "yvoty-photos"
+    # Host the *browser* reaches MinIO at; presigned URLs are signed against it. The backend
+    # itself talks to s3_endpoint_url (http://minio:9000 inside compose).
+    s3_public_url: str = "http://127.0.0.1:9000"
     # Dev default only (>=32 bytes so PyJWT doesn't warn); set JWT_SECRET for anything real.
     jwt_secret: str = "dev-only-insecure-jwt-secret-change-me-0123456789"
     jwt_ttl_minutes: int = 60 * 24
