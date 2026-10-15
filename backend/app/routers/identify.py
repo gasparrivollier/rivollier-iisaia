@@ -1,6 +1,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
@@ -34,7 +35,8 @@ def identify(
     plantnet: PlantnetClient = Depends(get_plantnet_client),
     storage: Storage = Depends(get_storage),
 ) -> IdentifyResponse:
-    # Read one byte past the cap so an oversize body is detected without buffering all of it.
+    # Read one byte past the cap so an oversize photo is detected without holding more than that
+    # in memory (the multipart body itself is already received by the time this runs).
     data = image.file.read(MAX_IMAGE_BYTES + 1)
     try:
         photo = validate_image(data)
@@ -69,14 +71,21 @@ def identify(
     except StorageError:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Photo storage unavailable") from None
 
-    ident = persist_identification(
-        db,
-        user_id=user.id,
-        project=settings.plantnet_project,
-        response=response,
-        image_key=key,
-        organ=_ORGAN,
-    )
+    try:
+        ident = persist_identification(
+            db,
+            user_id=user.id,
+            project=settings.plantnet_project,
+            response=response,
+            image_key=key,
+            organ=_ORGAN,
+        )
+    except SQLAlchemyError:
+        # An HTTPException keeps the CORS headers; an unhandled 500 would not, and the browser
+        # would report it as "can't reach the server".
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Could not save the identification"
+        ) from None
     stored = ident.images[0]
     return IdentifyResponse(
         identification_id=ident.id,

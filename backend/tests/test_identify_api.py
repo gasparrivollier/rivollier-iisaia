@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 
 from app.core.deps import get_current_user
 from app.db import get_db
@@ -140,3 +141,11 @@ def test_storage_failure_is_502_and_commits_nothing(env):
     res = _post(env.client, png_bytes())
     assert res.status_code == 502
     assert env.db.added == [] and env.db.commits == 0
+
+
+def test_db_failure_is_a_503_with_cors_headers_so_the_browser_can_read_it(env):
+    env.db.fail_on_commit = OperationalError("INSERT", {}, Exception("db down"))
+    res = _post(env.client, png_bytes(), headers={"Origin": APP_ORIGIN})
+    assert res.status_code == 503
+    assert res.headers["access-control-allow-origin"] == APP_ORIGIN
+    assert env.db.rollbacks == 1

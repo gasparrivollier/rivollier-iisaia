@@ -10,6 +10,8 @@ from PIL import Image, UnidentifiedImageError
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
 MIN_SIDE_PX = 800
+# A tiny, highly compressible PNG can still decode to hundreds of MB of pixels.
+MAX_PIXELS = 50_000_000
 
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 _JPEG_MAGIC = b"\xff\xd8\xff"
@@ -42,6 +44,11 @@ def validate_image(data: bytes) -> ValidatedImage:
     try:
         with Image.open(io.BytesIO(data)) as img:
             width, height = img.size
+            if width * height > MAX_PIXELS:
+                raise ImageRejected(
+                    f"Photo is too large ({width}x{height}); the limit is "
+                    f"{MAX_PIXELS // 1_000_000} megapixels"
+                )
             img.load()  # full decode: catches truncated files that still have a valid header
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError, Image.DecompressionBombError):
         raise ImageRejected("That file could not be read as an image") from None

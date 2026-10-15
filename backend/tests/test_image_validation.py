@@ -54,3 +54,11 @@ def test_rejects_oversize_with_413_before_decoding():
     with pytest.raises(ImageRejected) as exc:
         validate_image(b"\x89PNG\r\n\x1a\n" + b"0" * MAX_IMAGE_BYTES)
     assert exc.value.status_code == 413
+
+
+def test_rejects_a_huge_pixel_count_before_decoding_it():
+    # ~64 MP compresses to a few hundred KB, so the byte cap alone would let it through.
+    with pytest.raises(ImageRejected) as exc:
+        validate_image(png_bytes(8000, 8000))
+    assert exc.value.status_code == 422
+    assert "megapixel" in exc.value.message
